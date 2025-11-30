@@ -22,10 +22,6 @@ import {
   TableHeader,
   TableRow,
   Badge,
-  ResponsiveContainer,
-  Pie,
-  PieChart,
-  Cell,
   ChartContainer,
   ChartLegend,
   ChartLegendContent,
@@ -66,6 +62,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui';
+import {
+  ResponsiveContainer,
+  Pie,
+  PieChart,
+  Cell,
+} from 'recharts';
 import { useToast } from '@/hooks/use-toast';
 import {
   Loader2,
@@ -686,5 +688,3 @@ export function BudgetTabs() {
     </>
   );
 }
-
-    
