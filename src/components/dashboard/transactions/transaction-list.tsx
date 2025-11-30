@@ -47,6 +47,29 @@ const transactionSchema = z.object({
 
 type TransactionFormData = z.infer<typeof transactionSchema>;
 
+const incomeCategories = [
+    "Sales",
+    "Services",
+    "Interest Income",
+    "Rental Income",
+    "Other",
+];
+
+const expenseCategories = [
+    "Cost of Goods Sold",
+    "Salaries and Wages",
+    "Rent",
+    "Utilities",
+    "Marketing and Advertising",
+    "Office Supplies",
+    "Software and Subscriptions",
+    "Taxes",
+    "Travel",
+    "Repairs and Maintenance",
+    "Other",
+];
+
+
 export function TransactionList() {
     const [transactions, setTransactions] = useState<Transaction[]>(initialData);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -56,6 +79,8 @@ export function TransactionList() {
     const form = useForm<TransactionFormData>({
       resolver: zodResolver(transactionSchema),
     });
+
+    const category = form.watch("category");
 
     const handleDialogOpenChange = (open: boolean) => {
         setIsDialogOpen(open);
@@ -190,9 +215,9 @@ export function TransactionList() {
                                     name="category"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Category</FormLabel>
-                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                              <FormControl><SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger></FormControl>
+                                            <FormLabel>Type</FormLabel>
+                                            <Select onValueChange={field.onChange} value={field.value}>
+                                              <FormControl><SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger></FormControl>
                                               <SelectContent>
                                                   <SelectItem value="Income">Income</SelectItem>
                                                   <SelectItem value="Expense">Expense</SelectItem>
@@ -209,8 +234,15 @@ export function TransactionList() {
                                     name="subcategory"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Subcategory</FormLabel>
-                                            <FormControl><Input placeholder="e.g., Sales" {...field} /></FormControl>
+                                            <FormLabel>Category</FormLabel>
+                                            <Select onValueChange={field.onChange} value={field.value}>
+                                                <FormControl><SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger></FormControl>
+                                                <SelectContent>
+                                                    {(category === 'Income' ? incomeCategories : expenseCategories).map(cat => (
+                                                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
                                             <FormMessage />
                                         </FormItem>
                                     )}
