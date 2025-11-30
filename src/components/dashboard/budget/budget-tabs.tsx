@@ -56,7 +56,6 @@ const budgetItemSchema = z.object({
   type: z.enum(["income", "expense"]),
   category: z.string().min(2, "Category is required."),
   budgeted: z.coerce.number().min(0, "Budgeted amount must be a positive number."),
-  actual: z.coerce.number().min(0, "Actual amount must be a positive number."),
 });
 
 type BudgetItemFormData = z.infer<typeof budgetItemSchema>;
@@ -79,7 +78,7 @@ export function BudgetTabs() {
     const newCategory: BudgetCategory = {
       name: data.category,
       budgeted: data.budgeted,
-      actual: data.actual,
+      actual: 0,
     };
     if (data.type === 'income') {
       setBudget(prev => ({ ...prev, income: [...prev.income, newCategory] }));
@@ -87,7 +86,7 @@ export function BudgetTabs() {
       setBudget(prev => ({ ...prev, expenses: [...prev.expenses, newCategory] }));
     }
     toast({ title: "Budget Item Added!", description: `${data.category} has been added to your budget.` });
-    budgetItemForm.reset({category: '', budgeted: 0, actual: 0, type: 'expense'});
+    budgetItemForm.reset({category: '', budgeted: 0, type: 'expense'});
     setIsAddBudgetItemDialogOpen(false);
   };
   
@@ -375,22 +374,13 @@ export function BudgetTabs() {
                               <FormMessage />
                           </FormItem>
                       )} />
-                      <div className="grid grid-cols-2 gap-4">
-                          <FormField control={budgetItemForm.control} name="budgeted" render={({ field }) => (
-                              <FormItem>
-                                  <FormLabel>Budgeted (₱)</FormLabel>
-                                  <FormControl><Input type="number" placeholder="10000" {...field} /></FormControl>
-                                  <FormMessage />
-                              </FormItem>
-                          )} />
-                          <FormField control={budgetItemForm.control} name="actual" render={({ field }) => (
-                              <FormItem>
-                                  <FormLabel>Actual (₱)</FormLabel>
-                                  <FormControl><Input type="number" placeholder="0" {...field} /></FormControl>
-                                  <FormMessage />
-                              </FormItem>
-                          )} />
-                      </div>
+                      <FormField control={budgetItemForm.control} name="budgeted" render={({ field }) => (
+                          <FormItem>
+                              <FormLabel>Budgeted (₱)</FormLabel>
+                              <FormControl><Input type="number" placeholder="10000" {...field} /></FormControl>
+                              <FormMessage />
+                          </FormItem>
+                      )} />
                       <DialogFooter>
                           <DialogClose asChild><Button type="button" variant="secondary">Cancel</Button></DialogClose>
                           <Button type="submit">Add Item</Button>
@@ -418,5 +408,3 @@ export function BudgetTabs() {
     </>
   );
 }
-
-    
