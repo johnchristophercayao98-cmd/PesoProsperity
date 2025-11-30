@@ -27,7 +27,7 @@ const generateForecastData = (startDate: Date) => {
         const cashOut = Math.round(2400 * (1 + Math.cos(getMonth(date) + i) * 0.15));
         const balance = lastBalance + cashIn - cashOut;
         data.push({
-            month: format(date, "MMM 'yy"),
+            month: format(date, "MMM yyyy"),
             cashIn,
             cashOut,
             balance
