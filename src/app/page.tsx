@@ -14,7 +14,7 @@ export default function LandingPage() {
             <span className="text-2xl font-bold text-primary">PesoProsperity</span>
           </div>
           <Button asChild>
-            <Link href="/dashboard">Go to App</Link>
+            <Link href="/login">Login</Link>
           </Button>
         </div>
       </header>
@@ -23,14 +23,14 @@ export default function LandingPage() {
         <section className="py-20 md:py-32 bg-secondary/50">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h1 className="text-4xl md:text-6xl font-headline font-bold text-primary tracking-tight">
-              Financial Clarity for Filipino SMEs
+              Financial Clarity for Filipino Small Enterprises
             </h1>
             <p className="mt-6 max-w-3xl mx-auto text-lg md:text-xl text-muted-foreground">
               PesoProsperity is a simple, beginner-friendly budgeting system designed to empower small enterprises in the Philippines. Plan your finances, control costs, and manage cash flow with ease.
             </p>
             <div className="mt-10 flex justify-center gap-4">
               <Button size="lg" asChild>
-                <Link href="/dashboard">
+                <Link href="/signup">
                   Get Started for Free
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
