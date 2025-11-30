@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { recurringTransactions as initialData } from "@/lib/data";
 import type { RecurringTransaction } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MoreHorizontal, PlusCircle, Calendar as CalendarIcon } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { format } from "date-fns";
+import { format, isWithinInterval, startOfMonth, endOfMonth } from "date-fns";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -53,7 +54,8 @@ type RecurringFormData = z.infer<typeof recurringSchema>;
 
 
 export function RecurringList() {
-    const [transactions, setTransactions] = useState<RecurringTransaction[]>(initialData);
+    const [allTransactions, setAllTransactions] = useState<RecurringTransaction[]>(initialData);
+    const [filteredTransactions, setFilteredTransactions] = useState<RecurringTransaction[]>(initialData);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
     const { toast } = useToast();
@@ -66,12 +68,19 @@ export function RecurringList() {
       },
     });
 
+    useEffect(() => {
+        const start = startOfMonth(selectedDate);
+        const end = endOfMonth(selectedDate);
+        const filtered = allTransactions.filter(t => isWithinInterval(t.startDate, { start, end }) || !t.endDate || isWithinInterval(t.endDate, {start, end}));
+        setFilteredTransactions(filtered);
+    }, [selectedDate, allTransactions]);
+
     const onSubmit = (data: RecurringFormData) => {
         const newTransaction: RecurringTransaction = {
-            id: (transactions.length + 1).toString(),
+            id: (allTransactions.length + 1).toString(),
             ...data,
         };
-        setTransactions((prev) => [...prev, newTransaction]);
+        setAllTransactions((prev) => [...prev, newTransaction]);
         toast({
             title: "Transaction Added!",
             description: `Recurring transaction "${data.description}" has been added.`,
@@ -224,7 +233,7 @@ export function RecurringList() {
             </div>
             <Card>
                 <CardHeader>
-                    <CardTitle>Scheduled Transactions</CardTitle>
+                    <CardTitle>Scheduled Transactions for {format(selectedDate, "MMMM yyyy")}</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <Table>
@@ -238,7 +247,7 @@ export function RecurringList() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {transactions.map(t => (
+                            {filteredTransactions.map(t => (
                                 <TableRow key={t.id}>
                                     <TableCell className="font-medium">{t.description}</TableCell>
                                     <TableCell className={cn(t.category === 'Income' ? 'text-green-600' : 'text-red-600')}>

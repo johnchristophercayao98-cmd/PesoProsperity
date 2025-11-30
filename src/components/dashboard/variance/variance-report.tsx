@@ -1,8 +1,10 @@
+
 "use client"
 
-import { useState } from "react";
-import { format } from "date-fns";
-import { sampleBudget } from "@/lib/data"
+import { useState, useEffect } from "react";
+import { format, getMonth, getYear } from "date-fns";
+import { sampleBudget as initialSampleBudget } from "@/lib/data"
+import type { Budget } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
@@ -19,9 +21,31 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 
 export function VarianceReport() {
-    const { income, expenses } = sampleBudget;
+    const [sampleBudget, setSampleBudget] = useState<Budget>(initialSampleBudget);
     const [selectedDate, setSelectedDate] = useState<Date>(new Date(2024, 6, 1));
     
+    useEffect(() => {
+        // Simulate fetching new data based on the selected date
+        const month = getMonth(selectedDate);
+        const year = getYear(selectedDate);
+        
+        const newBudgetData: Budget = {
+            month: format(selectedDate, "MMMM yyyy"),
+            income: initialSampleBudget.income.map(item => ({
+                ...item,
+                budgeted: Math.round(item.budgeted * (1 + Math.sin(month) * 0.1)),
+                actual: Math.round(item.actual * (1 + Math.cos(month) * 0.15)),
+            })),
+            expenses: initialSampleBudget.expenses.map(item => ({
+                ...item,
+                budgeted: Math.round(item.budgeted * (1 + Math.sin(month + 1) * 0.05)),
+                actual: Math.round(item.actual * (1 + Math.cos(month + 1) * 0.1)),
+            })),
+        };
+        setSampleBudget(newBudgetData);
+    }, [selectedDate]);
+
+    const { income, expenses } = sampleBudget;
     const overspentItems = expenses.filter(item => item.actual > item.budgeted);
 
     const varianceData = expenses.map(item => ({
@@ -35,7 +59,7 @@ export function VarianceReport() {
       },
     }
 
-    const CustomBar = (props) => {
+    const CustomBar = (props: any) => {
       const { fill, x, y, width, height, payload } = props;
       const isNegative = payload.variance < 0;
       return <rect x={x} y={isNegative ? y - Math.abs(height) : y} width={width} height={Math.abs(height)} fill={isNegative ? "hsl(var(--destructive))" : "hsl(var(--chart-2))"} />;

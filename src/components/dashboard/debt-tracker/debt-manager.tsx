@@ -1,6 +1,7 @@
+
 "use client"
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { debts as initialDebts } from "@/lib/data";
 import type { Debt } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,7 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { MoreHorizontal, PlusCircle, Calendar as CalendarIcon } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { format, formatDistanceToNow } from "date-fns";
+import { format, formatDistanceToNow, getMonth } from "date-fns";
 import {
   Dialog,
   DialogContent,
@@ -59,6 +60,16 @@ export function DebtManager() {
     const addForm = useForm<DebtFormData>({ resolver: zodResolver(debtSchema) });
     const payForm = useForm<PaymentFormData>({ resolver: zodResolver(paymentSchema) });
     
+    useEffect(() => {
+        // Simulate fetching new data based on the selected date
+        const month = getMonth(selectedDate);
+        const newDebts = initialDebts.map(debt => ({
+            ...debt,
+            amountPaid: Math.min(debt.totalAmount, debt.amountPaid + Math.round(debt.totalAmount * 0.1 * Math.sin(month + parseInt(debt.id)))),
+        }));
+        setDebts(newDebts);
+    }, [selectedDate]);
+
     const handleAddDebt = (data: DebtFormData) => {
         const newDebt: Debt = {
             id: (debts.length + 1).toString(),
@@ -120,7 +131,7 @@ export function DebtManager() {
             <div className="grid gap-6 lg:grid-cols-3">
                 <div className="lg:col-span-2">
                     <Card>
-                        <CardHeader><CardTitle>Current Debts</CardTitle></CardHeader>
+                        <CardHeader><CardTitle>Current Debts for {format(selectedDate, "MMMM yyyy")}</CardTitle></CardHeader>
                         <CardContent>
                             <Table>
                                 <TableHeader>

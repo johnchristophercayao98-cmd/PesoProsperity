@@ -1,7 +1,8 @@
+
 "use client"
 
-import { useState } from "react";
-import { format } from "date-fns";
+import { useState, useEffect } from "react";
+import { format, getMonth, getYear } from "date-fns";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { DollarSign, TrendingDown, TrendingUp, Info, Calendar as CalendarIcon } from "lucide-react"
@@ -17,7 +18,7 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 
-const forecastData = [
+const initialForecastData = [
   { month: "Jul '24", cashIn: 4000, cashOut: 2400, balance: 2000 },
   { month: "Aug '24", cashIn: 3000, cashOut: 1398, balance: 3602 },
   { month: "Sep '24", cashIn: 2000, cashOut: 5800, balance: -200 },
@@ -34,7 +35,25 @@ const chartConfig = {
 
 export function CashflowForecast() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [forecastData, setForecastData] = useState(initialForecastData);
+
+  useEffect(() => {
+    // Simulate fetching new data based on the selected date
+    const month = getMonth(selectedDate);
+    const year = getYear(selectedDate);
+    
+    // Create some pseudo-random data based on the date
+    const newForecastData = initialForecastData.map((d, i) => ({
+      ...d,
+      cashIn: Math.abs(d.cashIn * Math.sin(month + i) * 1.2),
+      cashOut: Math.abs(d.cashOut * Math.cos(month + i) * 1.1),
+      balance: d.balance + (month * 100)
+    }));
+    setForecastData(newForecastData);
+  }, [selectedDate]);
+
   const lowestPoint = Math.min(...forecastData.map(d => d.balance));
+  const lowestPointMonth = forecastData.find(d => d.balance === lowestPoint)?.month || '';
 
   return (
     <div className="grid gap-6">
@@ -72,7 +91,7 @@ export function CashflowForecast() {
         <Card className="md:col-span-2">
           <CardHeader>
             <CardTitle>6-Month Cash Flow Forecast</CardTitle>
-            <CardDescription>Based on recurring transactions and historical data.</CardDescription>
+            <CardDescription>Based on recurring transactions and historical data for {format(selectedDate, "MMMM yyyy")}.</CardDescription>
           </CardHeader>
           <CardContent>
             <ChartContainer config={chartConfig} className="h-[350px] w-full">
@@ -109,7 +128,7 @@ export function CashflowForecast() {
                 </CardHeader>
                 <CardContent>
                     <div className="text-2xl font-bold text-red-600">₱{lowestPoint.toLocaleString()}</div>
-                    <p className="text-xs text-muted-foreground">in September 2024</p>
+                    <p className="text-xs text-muted-foreground">in {lowestPointMonth}</p>
                 </CardContent>
              </Card>
              <Card>
