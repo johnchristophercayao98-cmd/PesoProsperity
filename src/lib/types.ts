@@ -1,5 +1,7 @@
+
 export type Transaction = {
   id: string;
+  userId: string;
   date: Date;
   description: string;
   amount: number;
@@ -9,6 +11,7 @@ export type Transaction = {
 
 export type RecurringTransaction = {
   id: string;
+  userId: string;
   description: string;
   amount: number;
   category: 'Income' | 'Expense';
@@ -20,6 +23,7 @@ export type RecurringTransaction = {
 
 export type FinancialGoal = {
   id: string;
+  userId: string;
   name: string;
   targetAmount: number;
   currentAmount: number;
@@ -28,6 +32,7 @@ export type FinancialGoal = {
 
 export type Debt = {
   id: string;
+  userId: string;
   creditor: string;
   totalAmount: number;
   amountPaid: number;
@@ -42,7 +47,13 @@ export type BudgetCategory = {
 };
 
 export type Budget = {
-  month: string;
+  id: string;
+  userId: string;
+  name: string;
+  startDate: Date;
+  endDate: Date;
   income: BudgetCategory[];
   expenses: BudgetCategory[];
 };
+
+    
