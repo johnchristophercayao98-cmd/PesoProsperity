@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -7,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Upload, FileText, PlusCircle } from "lucide-react";
+import { Loader2, Upload, FileText, PlusCircle, Calendar as CalendarIcon } from "lucide-react";
 import { suggestMonthlyBudget, SuggestMonthlyBudgetOutput } from "@/ai/flows/automated-budget-suggestions";
 import { sampleBudget } from "@/lib/data";
 import type { Budget, BudgetCategory } from "@/lib/types";
@@ -15,14 +16,53 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { ResponsiveContainer, Pie, PieChart, Cell } from "recharts";
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
 
 const COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
+
+const budgetItemSchema = z.object({
+  type: z.enum(["income", "expense"]),
+  name: z.string().min(2, "Category name is required."),
+  budgeted: z.coerce.number().min(0, "Budgeted amount must be a positive number."),
+  actual: z.coerce.number().min(0, "Actual amount must be a positive number."),
+});
+
+type BudgetItemFormData = z.infer<typeof budgetItemSchema>;
 
 export function BudgetTabs() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [aiResult, setAiResult] = useState<SuggestMonthlyBudgetOutput | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [budget, setBudget] = useState<Budget>(sampleBudget);
+  const [isAddBudgetItemDialogOpen, setIsAddBudgetItemDialogOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date(2024, 6, 1));
+
+  const budgetItemForm = useForm<BudgetItemFormData>({ resolver: zodResolver(budgetItemSchema) });
+
+  const handleAddBudgetItem = (data: BudgetItemFormData) => {
+    const newCategory: BudgetCategory = {
+      name: data.name,
+      budgeted: data.budgeted,
+      actual: data.actual,
+    };
+    if (data.type === 'income') {
+      setBudget(prev => ({ ...prev, income: [...prev.income, newCategory] }));
+    } else {
+      setBudget(prev => ({ ...prev, expenses: [...prev.expenses, newCategory] }));
+    }
+    toast({ title: "Budget Item Added!", description: `${data.name} has been added to your budget.` });
+    budgetItemForm.reset({name: '', budgeted: 0, actual: 0, type: 'expense'});
+    setIsAddBudgetItemDialogOpen(false);
+  };
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -128,86 +168,166 @@ export function BudgetTabs() {
   };
 
   return (
-    <Tabs defaultValue="manual">
-      <TabsList className="grid w-full grid-cols-2">
-        <TabsTrigger value="manual">Manual Budget</TabsTrigger>
-        <TabsTrigger value="ai">AI Budget Suggester</TabsTrigger>
-      </TabsList>
-      <TabsContent value="manual">
-        <Card>
-          <CardHeader className="flex-row items-center justify-between">
-            <div>
-              <CardTitle>{sampleBudget.month}</CardTitle>
+    <>
+      <Tabs defaultValue="manual">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="manual">Manual Budget</TabsTrigger>
+          <TabsTrigger value="ai">AI Budget Suggester</TabsTrigger>
+        </TabsList>
+        <TabsContent value="manual">
+          <Card>
+            <CardHeader className="flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex-1">
+                <CardTitle>{format(selectedDate, "MMMM yyyy")}</CardTitle>
+                <CardDescription>
+                  Here is your budget overview. You can add new items or edit amounts directly.
+                </CardDescription>
+              </div>
+              <div className="flex gap-2">
+                 <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {format(selectedDate, "MMMM yyyy")}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={(date) => {
+                        if(date) setSelectedDate(date);
+                      }}
+                      initialFocus
+                      captionLayout="dropdown-buttons"
+                      fromYear={2020}
+                      toYear={2030}
+                    />
+                  </PopoverContent>
+                </Popover>
+                <Button onClick={() => setIsAddBudgetItemDialogOpen(true)}>
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Add Item
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-8">
+                <div>
+                  {renderBudgetTable("Income", budget.income)}
+                  {renderPieChart("Income Sources", budget.income)}
+                </div>
+                <div>
+                  {renderBudgetTable("Expenses", budget.expenses)}
+                  {renderPieChart("Expense Categories", budget.expenses)}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="ai">
+          <Card>
+            <CardHeader>
+              <CardTitle>AI Budget Suggester</CardTitle>
               <CardDescription>
-                Here is your current budget overview. You can edit amounts directly in the table.
+                Upload a CSV of your financial data to get a personalized budget suggestion.
               </CardDescription>
-            </div>
-            <Button>
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Add Budget
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-8">
+            </CardHeader>
+            <CardContent className="space-y-4">
               <div>
-                {renderBudgetTable("Income", sampleBudget.income)}
-                {renderPieChart("Income Sources", sampleBudget.income)}
+                <Label htmlFor="financial-data-file" className="sr-only">Upload File</Label>
+                <Input id="financial-data-file" type="file" accept=".csv, text/csv" className="hidden" onChange={handleFileChange} disabled={isLoading} />
+                <Button asChild variant="outline" className="w-full cursor-pointer">
+                  <label htmlFor="financial-data-file">
+                    <Upload className="mr-2 h-4 w-4" />
+                    Choose a file
+                  </label>
+                </Button>
               </div>
-              <div>
-                {renderBudgetTable("Expenses", sampleBudget.expenses)}
-                {renderPieChart("Expense Categories", sampleBudget.expenses)}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </TabsContent>
-      <TabsContent value="ai">
-        <Card>
-          <CardHeader>
-            <CardTitle>AI Budget Suggester</CardTitle>
-            <CardDescription>
-              Upload a CSV of your financial data to get a personalized budget suggestion.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="financial-data-file" className="sr-only">Upload File</Label>
-              <Input id="financial-data-file" type="file" accept=".csv, text/csv" className="hidden" onChange={handleFileChange} disabled={isLoading} />
-              <Button asChild variant="outline" className="w-full cursor-pointer">
-                <label htmlFor="financial-data-file">
-                  <Upload className="mr-2 h-4 w-4" />
-                  Choose a file
-                </label>
-              </Button>
-            </div>
-            {isLoading && (
-              <div className="flex items-center justify-center p-8">
-                <Loader2 className="mr-2 h-8 w-8 animate-spin" />
-                <p>AI is analyzing your data...</p>
-              </div>
-            )}
-            {fileName && !isLoading && (
-              <div className="flex items-center p-3 rounded-md border bg-secondary/50">
-                <FileText className="h-5 w-5 mr-2 text-primary"/>
-                <span className="text-sm font-medium">{fileName}</span>
-              </div>
-            )}
-            {aiResult && aiResult.suggestedBudget && (
-              <Card className="bg-secondary/50">
-                <CardHeader>
-                  <CardTitle>Suggested Budget</CardTitle>
-                  <CardDescription>{aiResult.explanation}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <pre className="p-4 bg-background rounded-md text-sm overflow-x-auto">
-                    {JSON.stringify(JSON.parse(aiResult.suggestedBudget), null, 2)}
-                  </pre>
-                </CardContent>
-              </Card>
-            )}
-          </CardContent>
-        </Card>
-      </TabsContent>
-    </Tabs>
+              {isLoading && (
+                <div className="flex items-center justify-center p-8">
+                  <Loader2 className="mr-2 h-8 w-8 animate-spin" />
+                  <p>AI is analyzing your data...</p>
+                </div>
+              )}
+              {fileName && !isLoading && (
+                <div className="flex items-center p-3 rounded-md border bg-secondary/50">
+                  <FileText className="h-5 w-5 mr-2 text-primary"/>
+                  <span className="text-sm font-medium">{fileName}</span>
+                </div>
+              )}
+              {aiResult && aiResult.suggestedBudget && (
+                <Card className="bg-secondary/50">
+                  <CardHeader>
+                    <CardTitle>Suggested Budget</CardTitle>
+                    <CardDescription>{aiResult.explanation}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <pre className="p-4 bg-background rounded-md text-sm overflow-x-auto">
+                      {JSON.stringify(JSON.parse(aiResult.suggestedBudget), null, 2)}
+                    </pre>
+                  </CardContent>
+                </Card>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      <Dialog open={isAddBudgetItemDialogOpen} onOpenChange={setIsAddBudgetItemDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                  <DialogTitle>Add Budget Item</DialogTitle>
+                  <DialogDescription>Add a new income or expense category to your budget for {format(selectedDate, "MMMM yyyy")}.</DialogDescription>
+              </DialogHeader>
+              <Form {...budgetItemForm}>
+                  <form onSubmit={budgetItemForm.handleSubmit(handleAddBudgetItem)} className="space-y-4">
+                      <FormField control={budgetItemForm.control} name="type" render={({ field }) => (
+                          <FormItem>
+                              <FormLabel>Type</FormLabel>
+                              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl><SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger></FormControl>
+                                <SelectContent>
+                                    <SelectItem value="income">Income</SelectItem>
+                                    <SelectItem value="expense">Expense</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                          </FormItem>
+                      )} />
+                      <FormField control={budgetItemForm.control} name="name" render={({ field }) => (
+                          <FormItem>
+                              <FormLabel>Category Name</FormLabel>
+                              <FormControl><Input placeholder="e.g., Freelance Project" {...field} /></FormControl>
+                              <FormMessage />
+                          </FormItem>
+                      )} />
+                      <div className="grid grid-cols-2 gap-4">
+                          <FormField control={budgetItemForm.control} name="budgeted" render={({ field }) => (
+                              <FormItem>
+                                  <FormLabel>Budgeted (₱)</FormLabel>
+                                  <FormControl><Input type="number" placeholder="10000" {...field} /></FormControl>
+                                  <FormMessage />
+                              </FormItem>
+                          )} />
+                          <FormField control={budgetItemForm.control} name="actual" render={({ field }) => (
+                              <FormItem>
+                                  <FormLabel>Actual (₱)</FormLabel>
+                                  <FormControl><Input type="number" placeholder="0" {...field} /></FormControl>
+                                  <FormMessage />
+                              </FormItem>
+                          )} />
+                      </div>
+                      <DialogFooter>
+                          <DialogClose asChild><Button type="button" variant="secondary">Cancel</Button></DialogClose>
+                          <Button type="submit">Add Item</Button>
+                      </DialogFooter>
+                  </form>
+              </Form>
+          </DialogContent>
+      </Dialog>
+    </>
   );
 }
+
+    
