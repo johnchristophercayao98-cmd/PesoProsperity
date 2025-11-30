@@ -45,14 +45,26 @@ const goalSchema = z.object({
 
 type GoalFormData = z.infer<typeof goalSchema>;
 
+const addAmountSchema = z.object({
+  amount: z.coerce.number().min(0.01, "Amount must be a positive number."),
+});
+
+type AddAmountFormData = z.infer<typeof addAmountSchema>;
+
 export function GoalsDisplay() {
   const [goals, setGoals] = useState<FinancialGoal[]>(initialGoals);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isAddAmountDialogOpen, setIsAddAmountDialogOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<FinancialGoal | null>(null);
+  const [goalForAmount, setGoalForAmount] = useState<FinancialGoal | null>(null);
   const { toast } = useToast();
 
   const form = useForm<GoalFormData>({
     resolver: zodResolver(goalSchema),
+  });
+
+  const addAmountForm = useForm<AddAmountFormData>({
+    resolver: zodResolver(addAmountSchema),
   });
 
   React.useEffect(() => {
@@ -81,6 +93,14 @@ export function GoalsDisplay() {
     }
   };
 
+  const handleAddAmountDialogOpenChange = (open: boolean) => {
+    setIsAddAmountDialogOpen(open);
+    if (!open) {
+      setGoalForAmount(null);
+      addAmountForm.reset();
+    }
+  }
+
   const onSubmit = (data: GoalFormData) => {
     if (editingGoal) {
       const updatedGoal: FinancialGoal = {
@@ -108,6 +128,25 @@ export function GoalsDisplay() {
     form.reset();
     handleDialogOpenChange(false);
   };
+  
+  const handleAddAmount = (data: AddAmountFormData) => {
+    if (!goalForAmount) return;
+
+    const updatedCurrentAmount = goalForAmount.currentAmount + data.amount;
+    const updatedGoal: FinancialGoal = {
+        ...goalForAmount,
+        currentAmount: Math.min(updatedCurrentAmount, goalForAmount.targetAmount), // Cap at target amount
+    };
+
+    setGoals(goals.map(g => g.id === goalForAmount.id ? updatedGoal : g));
+
+    toast({
+        title: "Amount Added!",
+        description: `₱${data.amount.toLocaleString()} has been added to your "${goalForAmount.name}" goal.`,
+    });
+
+    handleAddAmountDialogOpenChange(false);
+  }
 
   const openAddDialog = () => {
     setEditingGoal(null);
@@ -203,6 +242,41 @@ export function GoalsDisplay() {
                 </Form>
             </DialogContent>
         </Dialog>
+
+        <Dialog open={isAddAmountDialogOpen} onOpenChange={handleAddAmountDialogOpenChange}>
+            <DialogContent className="sm:max-w-sm">
+                <DialogHeader>
+                    <DialogTitle>Add to Goal: {goalForAmount?.name}</DialogTitle>
+                    <DialogDescription>
+                        Add an amount to your financial goal. The current progress is ₱{goalForAmount?.currentAmount.toLocaleString()} / ₱{goalForAmount?.targetAmount.toLocaleString()}.
+                    </DialogDescription>
+                </DialogHeader>
+                 <Form {...addAmountForm}>
+                    <form onSubmit={addAmountForm.handleSubmit(handleAddAmount)} className="space-y-4">
+                        <FormField
+                            control={addAmountForm.control}
+                            name="amount"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Amount to Add (₱)</FormLabel>
+                                    <FormControl>
+                                        <Input type="number" placeholder="5000" {...field} autoFocus />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                         <DialogFooter>
+                            <DialogClose asChild>
+                                <Button type="button" variant="secondary">Cancel</Button>
+                            </DialogClose>
+                            <Button type="submit">Add Amount</Button>
+                        </DialogFooter>
+                    </form>
+                </Form>
+            </DialogContent>
+        </Dialog>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {goals.map((goal) => {
           const progress = (goal.currentAmount / goal.targetAmount) * 100;
@@ -218,6 +292,9 @@ export function GoalsDisplay() {
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => { setGoalForAmount(goal); handleAddAmountDialogOpenChange(true); }}>
+                           Add Amount
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => setEditingGoal(goal)}>
                             Edit
                         </DropdownMenuItem>
