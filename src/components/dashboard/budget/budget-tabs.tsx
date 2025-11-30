@@ -81,11 +81,11 @@ export function BudgetTabs() {
       actual: 0,
     };
     if (data.type === 'income') {
-      setBudget(prev => ({ ...prev, income: [...prev.income, newCategory] }));
+      setBudget(prev => ({ ...prev, month: format(selectedDate, "MMMM yyyy"), income: [...prev.income, newCategory] }));
     } else {
-      setBudget(prev => ({ ...prev, expenses: [...prev.expenses, newCategory] }));
+      setBudget(prev => ({ ...prev, month: format(selectedDate, "MMMM yyyy"), expenses: [...prev.expenses, newCategory] }));
     }
-    toast({ title: "Budget Item Added!", description: `${data.category} has been added to your budget.` });
+    toast({ title: "Budget Item Added!", description: `${data.category} has been added to your budget for ${format(selectedDate, "MMMM yyyy")}.` });
     budgetItemForm.reset({category: '', budgeted: 0, type: 'expense'});
     setIsAddBudgetItemDialogOpen(false);
   };
