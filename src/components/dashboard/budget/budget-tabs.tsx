@@ -30,9 +30,31 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 
 const COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
 
+const incomeCategories = [
+    "Sales",
+    "Services",
+    "Interest Income",
+    "Rental Income",
+    "Other",
+];
+
+const expenseCategories = [
+    "Cost of Goods Sold",
+    "Salaries and Wages",
+    "Rent",
+    "Utilities",
+    "Marketing and Advertising",
+    "Office Supplies",
+    "Software and Subscriptions",
+    "Taxes",
+    "Travel",
+    "Repairs and Maintenance",
+    "Other",
+];
+
 const budgetItemSchema = z.object({
   type: z.enum(["income", "expense"]),
-  name: z.string().min(2, "Category name is required."),
+  category: z.string().min(2, "Category is required."),
   budgeted: z.coerce.number().min(0, "Budgeted amount must be a positive number."),
   actual: z.coerce.number().min(0, "Actual amount must be a positive number."),
 });
@@ -50,10 +72,12 @@ export function BudgetTabs() {
   const [itemToDelete, setItemToDelete] = useState<{ type: 'income' | 'expense'; name: string } | null>(null);
 
   const budgetItemForm = useForm<BudgetItemFormData>({ resolver: zodResolver(budgetItemSchema) });
+  const itemType = budgetItemForm.watch("type");
+
 
   const handleAddBudgetItem = (data: BudgetItemFormData) => {
     const newCategory: BudgetCategory = {
-      name: data.name,
+      name: data.category,
       budgeted: data.budgeted,
       actual: data.actual,
     };
@@ -62,8 +86,8 @@ export function BudgetTabs() {
     } else {
       setBudget(prev => ({ ...prev, expenses: [...prev.expenses, newCategory] }));
     }
-    toast({ title: "Budget Item Added!", description: `${data.name} has been added to your budget.` });
-    budgetItemForm.reset({name: '', budgeted: 0, actual: 0, type: 'expense'});
+    toast({ title: "Budget Item Added!", description: `${data.category} has been added to your budget.` });
+    budgetItemForm.reset({category: '', budgeted: 0, actual: 0, type: 'expense'});
     setIsAddBudgetItemDialogOpen(false);
   };
   
@@ -337,10 +361,17 @@ export function BudgetTabs() {
                               <FormMessage />
                           </FormItem>
                       )} />
-                      <FormField control={budgetItemForm.control} name="name" render={({ field }) => (
+                      <FormField control={budgetItemForm.control} name="category" render={({ field }) => (
                           <FormItem>
-                              <FormLabel>Category Name</FormLabel>
-                              <FormControl><Input placeholder="e.g., Freelance Project" {...field} /></FormControl>
+                              <FormLabel>Category</FormLabel>
+                               <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl><SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger></FormControl>
+                                <SelectContent>
+                                    {(itemType === 'income' ? incomeCategories : expenseCategories).map(cat => (
+                                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                               </Select>
                               <FormMessage />
                           </FormItem>
                       )} />
@@ -387,3 +418,5 @@ export function BudgetTabs() {
     </>
   );
 }
+
+    
