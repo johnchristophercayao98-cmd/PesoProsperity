@@ -1,20 +1,26 @@
 "use client"
 
+import { useState } from "react";
+import { format } from "date-fns";
 import { sampleBudget } from "@/lib/data"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AlertCircle, TrendingDown, TrendingUp } from "lucide-react"
+import { AlertCircle, TrendingDown, TrendingUp, Calendar as CalendarIcon } from "lucide-react"
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Cell } from "recharts"
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart"
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 
 export function VarianceReport() {
     const { income, expenses } = sampleBudget;
+    const [selectedDate, setSelectedDate] = useState<Date>(new Date(2024, 6, 1));
     
     const overspentItems = expenses.filter(item => item.actual > item.budgeted);
 
@@ -37,6 +43,29 @@ export function VarianceReport() {
     
     return (
         <div className="grid gap-6">
+            <div className="flex justify-end">
+                <Popover>
+                    <PopoverTrigger asChild>
+                    <Button variant="outline">
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {format(selectedDate, "MMMM yyyy")}
+                    </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                    <Calendar
+                        mode="single"
+                        selected={selectedDate}
+                        onSelect={(date) => {
+                        if(date) setSelectedDate(date);
+                        }}
+                        initialFocus
+                        captionLayout="dropdown-buttons"
+                        fromYear={2020}
+                        toYear={2030}
+                    />
+                    </PopoverContent>
+                </Popover>
+            </div>
             {overspentItems.length > 0 && (
                 <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
@@ -51,6 +80,7 @@ export function VarianceReport() {
                  <Card>
                     <CardHeader>
                         <CardTitle>Expense Variance Chart</CardTitle>
+                        <CardDescription>For {format(selectedDate, "MMMM yyyy")}</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={chartConfig} className="h-[300px] w-full">
@@ -73,6 +103,7 @@ export function VarianceReport() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Summary</CardTitle>
+                        <CardDescription>For {format(selectedDate, "MMMM yyyy")}</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="flex items-center justify-between p-4 rounded-md bg-secondary/50">
@@ -106,6 +137,7 @@ export function VarianceReport() {
             <Card>
                 <CardHeader>
                     <CardTitle>Detailed Report</CardTitle>
+                    <CardDescription>For {format(selectedDate, "MMMM yyyy")}</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <h3 className="text-lg font-semibold mb-2">Income</h3>

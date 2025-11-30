@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, PlusCircle } from "lucide-react";
+import { MoreHorizontal, PlusCircle, Calendar as CalendarIcon } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -36,6 +36,8 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 
 const recurringSchema = z.object({
   description: z.string().min(3, "Description is required."),
@@ -53,6 +55,7 @@ type RecurringFormData = z.infer<typeof recurringSchema>;
 export function RecurringList() {
     const [transactions, setTransactions] = useState<RecurringTransaction[]>(initialData);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [selectedDate, setSelectedDate] = useState<Date>(new Date());
     const { toast } = useToast();
 
     const form = useForm<RecurringFormData>({
@@ -79,7 +82,28 @@ export function RecurringList() {
 
     return (
         <>
-            <div className="mb-6 flex justify-end">
+            <div className="mb-6 flex items-center justify-end gap-2">
+                <Popover>
+                    <PopoverTrigger asChild>
+                    <Button variant="outline">
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {format(selectedDate, "MMMM yyyy")}
+                    </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                    <Calendar
+                        mode="single"
+                        selected={selectedDate}
+                        onSelect={(date) => {
+                        if(date) setSelectedDate(date);
+                        }}
+                        initialFocus
+                        captionLayout="dropdown-buttons"
+                        fromYear={2020}
+                        toYear={2030}
+                    />
+                    </PopoverContent>
+                </Popover>
                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                     <DialogTrigger asChild>
                         <Button>

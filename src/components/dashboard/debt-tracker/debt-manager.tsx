@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, PlusCircle } from "lucide-react";
+import { MoreHorizontal, PlusCircle, Calendar as CalendarIcon } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { format, formatDistanceToNow } from "date-fns";
 import {
@@ -30,6 +30,8 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { PesoSignIcon } from "@/components/icons/peso-sign";
 import { ResponsiveContainer, Pie, PieChart, Cell } from "recharts";
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 
 const COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
 
@@ -51,6 +53,7 @@ export function DebtManager() {
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [isPayDialogOpen, setIsPayDialogOpen] = useState(false);
     const [selectedDebt, setSelectedDebt] = useState<Debt | null>(null);
+    const [selectedDate, setSelectedDate] = useState<Date>(new Date());
     const { toast } = useToast();
 
     const addForm = useForm<DebtFormData>({ resolver: zodResolver(debtSchema) });
@@ -90,7 +93,28 @@ export function DebtManager() {
 
     return (
         <>
-            <div className="mb-6 flex justify-end">
+            <div className="mb-6 flex items-center justify-end gap-2">
+                <Popover>
+                    <PopoverTrigger asChild>
+                    <Button variant="outline">
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {format(selectedDate, "MMMM yyyy")}
+                    </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                    <Calendar
+                        mode="single"
+                        selected={selectedDate}
+                        onSelect={(date) => {
+                        if(date) setSelectedDate(date);
+                        }}
+                        initialFocus
+                        captionLayout="dropdown-buttons"
+                        fromYear={2020}
+                        toYear={2030}
+                    />
+                    </PopoverContent>
+                </Popover>
                 <Button onClick={() => setIsAddDialogOpen(true)}><PlusCircle className="mr-2 h-4 w-4" /> Add New Debt</Button>
             </div>
             <div className="grid gap-6 lg:grid-cols-3">

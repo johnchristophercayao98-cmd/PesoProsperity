@@ -1,8 +1,10 @@
 "use client"
 
+import { useState } from "react";
+import { format } from "date-fns";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { DollarSign, TrendingDown, TrendingUp, Info } from "lucide-react"
+import { DollarSign, TrendingDown, TrendingUp, Info, Calendar as CalendarIcon } from "lucide-react"
 import { Line, LineChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts"
 import {
   ChartContainer,
@@ -11,6 +13,9 @@ import {
   ChartLegend,
   ChartLegendContent,
 } from "@/components/ui/chart"
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Button } from "@/components/ui/button";
 
 const forecastData = [
   { month: "Jul '24", cashIn: 4000, cashOut: 2400, balance: 2000 },
@@ -28,17 +33,41 @@ const chartConfig = {
 }
 
 export function CashflowForecast() {
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const lowestPoint = Math.min(...forecastData.map(d => d.balance));
 
   return (
     <div className="grid gap-6">
-      <Alert>
-        <Info className="h-4 w-4" />
-        <AlertTitle>Cash Reserve Reminder</AlertTitle>
-        <AlertDescription>
-          Maintain a sufficient cash reserve to cover expenses during low-sales months. We recommend at least 3 months of operating expenses.
-        </AlertDescription>
-      </Alert>
+        <div className="flex items-center justify-between">
+            <Alert className="w-fit">
+                <Info className="h-4 w-4" />
+                <AlertTitle>Cash Reserve Reminder</AlertTitle>
+                <AlertDescription>
+                Maintain a sufficient cash reserve to cover expenses during low-sales months. We recommend at least 3 months of operating expenses.
+                </AlertDescription>
+            </Alert>
+            <Popover>
+                <PopoverTrigger asChild>
+                <Button variant="outline">
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {format(selectedDate, "MMMM yyyy")}
+                </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={(date) => {
+                    if(date) setSelectedDate(date);
+                    }}
+                    initialFocus
+                    captionLayout="dropdown-buttons"
+                    fromYear={2020}
+                    toYear={2030}
+                />
+                </PopoverContent>
+            </Popover>
+        </div>
       <div className="grid md:grid-cols-3 gap-6">
         <Card className="md:col-span-2">
           <CardHeader>
