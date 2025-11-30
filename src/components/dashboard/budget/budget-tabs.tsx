@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Upload, FileText, PlusCircle, Calendar as CalendarIcon } from "lucide-react";
+import { Loader2, Upload, FileText, PlusCircle, Calendar as CalendarIcon, Trash2, MoreVertical } from "lucide-react";
 import { suggestMonthlyBudget, SuggestMonthlyBudgetOutput } from "@/ai/flows/automated-budget-suggestions";
 import { sampleBudget } from "@/lib/data";
 import type { Budget, BudgetCategory } from "@/lib/types";
@@ -25,6 +25,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 const COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
 
@@ -45,6 +47,7 @@ export function BudgetTabs() {
   const [budget, setBudget] = useState<Budget>(sampleBudget);
   const [isAddBudgetItemDialogOpen, setIsAddBudgetItemDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date(2024, 6, 1));
+  const [itemToDelete, setItemToDelete] = useState<{ type: 'income' | 'expense'; name: string } | null>(null);
 
   const budgetItemForm = useForm<BudgetItemFormData>({ resolver: zodResolver(budgetItemSchema) });
 
@@ -63,6 +66,23 @@ export function BudgetTabs() {
     budgetItemForm.reset({name: '', budgeted: 0, actual: 0, type: 'expense'});
     setIsAddBudgetItemDialogOpen(false);
   };
+  
+  const handleDeleteItem = () => {
+    if (!itemToDelete) return;
+
+    if (itemToDelete.type === 'income') {
+        setBudget(prev => ({ ...prev, income: prev.income.filter(i => i.name !== itemToDelete.name) }));
+    } else {
+        setBudget(prev => ({ ...prev, expenses: prev.expenses.filter(e => e.name !== itemToDelete.name) }));
+    }
+
+    toast({
+        title: "Item Deleted",
+        description: `The item "${itemToDelete.name}" has been removed from your budget.`,
+    });
+    setItemToDelete(null);
+};
+
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -103,7 +123,7 @@ export function BudgetTabs() {
     }
   };
 
-  const renderBudgetTable = (title: string, data: BudgetCategory[]) => (
+  const renderBudgetTable = (title: string, data: BudgetCategory[], type: 'income' | 'expense') => (
     <div className="mb-4">
       <h3 className="text-lg font-semibold mb-2">{title}</h3>
       <Table>
@@ -113,6 +133,7 @@ export function BudgetTabs() {
             <TableHead className="text-right">Budgeted</TableHead>
             <TableHead className="text-right">Actual</TableHead>
             <TableHead className="text-right">Variance</TableHead>
+            <TableHead className="w-[50px]"><span className="sr-only">Actions</span></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -127,6 +148,27 @@ export function BudgetTabs() {
                   <Badge variant={variance >= 0 ? 'default' : 'destructive'} className={variance >= 0 ? "bg-green-600/80" : ""}>
                     ₱{Math.abs(variance).toLocaleString()}
                   </Badge>
+                </TableCell>
+                <TableCell>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" className="h-8 w-8 p-0">
+                        <span className="sr-only">Open menu</span>
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => { /* TODO: Implement Edit */ }}>
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="text-destructive"
+                        onClick={() => setItemToDelete({ type, name: item.name })}
+                      >
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </TableCell>
               </TableRow>
             );
@@ -214,11 +256,11 @@ export function BudgetTabs() {
             <CardContent>
               <div className="space-y-8">
                 <div>
-                  {renderBudgetTable("Income", budget.income)}
+                  {renderBudgetTable("Income", budget.income, "income")}
                   {renderPieChart("Income Sources", budget.income)}
                 </div>
                 <div>
-                  {renderBudgetTable("Expenses", budget.expenses)}
+                  {renderBudgetTable("Expenses", budget.expenses, "expense")}
                   {renderPieChart("Expense Categories", budget.expenses)}
                 </div>
               </div>
@@ -326,8 +368,22 @@ export function BudgetTabs() {
               </Form>
           </DialogContent>
       </Dialog>
+      
+      <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
+          <AlertDialogContent>
+              <AlertDialogHeader>
+                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete the budget item
+                      "{itemToDelete?.name}".
+                  </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                  <AlertDialogCancel onClick={() => setItemToDelete(null)}>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDeleteItem}>Delete</AlertDialogAction>
+              </AlertDialogFooter>
+          </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
-
-    
