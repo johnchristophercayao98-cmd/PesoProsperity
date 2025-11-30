@@ -14,6 +14,7 @@ import {
   TrendingUp,
   Waves,
   ChevronDown,
+  ArrowRightLeft,
 } from 'lucide-react';
 import {
   SidebarContent,
@@ -45,6 +46,11 @@ const navItems = [
       { href: '/dashboard/financial-planning/goals', label: 'Financial Goals', icon: Goal },
       { href: '/dashboard/financial-planning/budget', label: 'Budget Planner', icon: Notebook },
     ],
+  },
+  {
+    href: '/dashboard/transactions',
+    label: 'Transactions',
+    icon: ArrowRightLeft,
   },
   {
     label: 'Cost Control',
