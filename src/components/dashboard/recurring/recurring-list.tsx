@@ -40,8 +40,30 @@ import { useToast } from "@/hooks/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 
+const incomeCategories = [
+    "Sales",
+    "Services",
+    "Interest Income",
+    "Rental Income",
+    "Other",
+];
+
+const expenseCategories = [
+    "Cost of Goods Sold",
+    "Salaries and Wages",
+    "Rent",
+    "Utilities",
+    "Marketing and Advertising",
+    "Office Supplies",
+    "Software and Subscriptions",
+    "Taxes",
+    "Travel",
+    "Repairs and Maintenance",
+    "Other",
+];
+
 const recurringSchema = z.object({
-  description: z.string().min(3, "Description is required."),
+  description: z.string().min(3, "Category is required."),
   amount: z.coerce.number().min(0.01, "Amount must be positive."),
   category: z.enum(["Income", "Expense"]),
   frequency: z.enum(["daily", "weekly", "monthly", "yearly"]),
@@ -67,6 +89,8 @@ export function RecurringList() {
         frequency: "monthly",
       },
     });
+
+    const type = form.watch("category");
 
     useEffect(() => {
         const start = startOfMonth(selectedDate);
@@ -127,17 +151,43 @@ export function RecurringList() {
                         </DialogHeader>
                         <Form {...form}>
                             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                               <FormField
-                                    control={form.control}
-                                    name="description"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Description</FormLabel>
-                                            <FormControl><Input placeholder="e.g., Office Rent" {...field} /></FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
+                               <div className="grid grid-cols-2 gap-4">
+                                   <FormField
+                                        control={form.control}
+                                        name="category"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Type</FormLabel>
+                                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                  <FormControl><SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger></FormControl>
+                                                  <SelectContent>
+                                                      <SelectItem value="Income">Income</SelectItem>
+                                                      <SelectItem value="Expense">Expense</SelectItem>
+                                                  </SelectContent>
+                                                </Select>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="description"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Category</FormLabel>
+                                                <Select onValueChange={field.onChange} value={field.value}>
+                                                    <FormControl><SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger></FormControl>
+                                                    <SelectContent>
+                                                        {(type === 'Income' ? incomeCategories : expenseCategories).map(cat => (
+                                                            <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                               </div>
                                <div className="grid grid-cols-2 gap-4">
                                    <FormField
                                         control={form.control}
@@ -152,15 +202,17 @@ export function RecurringList() {
                                     />
                                     <FormField
                                         control={form.control}
-                                        name="category"
+                                        name="frequency"
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel>Category</FormLabel>
+                                                <FormLabel>Frequency</FormLabel>
                                                 <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                                  <FormControl><SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger></FormControl>
+                                                  <FormControl><SelectTrigger><SelectValue placeholder="Select frequency" /></SelectTrigger></FormControl>
                                                   <SelectContent>
-                                                      <SelectItem value="Income">Income</SelectItem>
-                                                      <SelectItem value="Expense">Expense</SelectItem>
+                                                      <SelectItem value="daily">Daily</SelectItem>
+                                                      <SelectItem value="weekly">Weekly</SelectItem>
+                                                      <SelectItem value="monthly">Monthly</SelectItem>
+                                                      <SelectItem value="yearly">Yearly</SelectItem>
                                                   </SelectContent>
                                                 </Select>
                                                 <FormMessage />
@@ -168,25 +220,6 @@ export function RecurringList() {
                                         )}
                                     />
                                </div>
-                               <FormField
-                                    control={form.control}
-                                    name="frequency"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Frequency</FormLabel>
-                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                              <FormControl><SelectTrigger><SelectValue placeholder="Select frequency" /></SelectTrigger></FormControl>
-                                              <SelectContent>
-                                                  <SelectItem value="daily">Daily</SelectItem>
-                                                  <SelectItem value="weekly">Weekly</SelectItem>
-                                                  <SelectItem value="monthly">Monthly</SelectItem>
-                                                  <SelectItem value="yearly">Yearly</SelectItem>
-                                              </SelectContent>
-                                            </Select>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
                                 <div className="grid grid-cols-2 gap-4">
                                      <FormField
                                         control={form.control}
@@ -281,3 +314,5 @@ export function RecurringList() {
         </>
     )
 }
+
+    
