@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Upload, FileText } from "lucide-react";
+import { Loader2, Upload, FileText, PlusCircle } from "lucide-react";
 import { suggestMonthlyBudget, SuggestMonthlyBudgetOutput } from "@/ai/flows/automated-budget-suggestions";
 import { sampleBudget } from "@/lib/data";
 import type { Budget, BudgetCategory } from "@/lib/types";
@@ -64,7 +64,7 @@ export function BudgetTabs() {
   };
 
   const renderBudgetTable = (title: string, data: BudgetCategory[]) => (
-    <div className="mb-8">
+    <div className="mb-4">
       <h3 className="text-lg font-semibold mb-2">{title}</h3>
       <Table>
         <TableHeader>
@@ -104,7 +104,7 @@ export function BudgetTabs() {
     }, {});
     
     return (
-      <Card>
+      <Card className="mt-6">
         <CardHeader>
           <CardTitle>{title}</CardTitle>
         </CardHeader>
@@ -135,22 +135,28 @@ export function BudgetTabs() {
       </TabsList>
       <TabsContent value="manual">
         <Card>
-          <CardHeader>
-            <CardTitle>{sampleBudget.month}</CardTitle>
-            <CardDescription>
-              Here is your current budget overview. You can edit amounts directly in the table.
-            </CardDescription>
+          <CardHeader className="flex-row items-center justify-between">
+            <div>
+              <CardTitle>{sampleBudget.month}</CardTitle>
+              <CardDescription>
+                Here is your current budget overview. You can edit amounts directly in the table.
+              </CardDescription>
+            </div>
+            <Button>
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Add Budget
+            </Button>
           </CardHeader>
           <CardContent>
-            <div className="grid md:grid-cols-3 gap-6">
-                <div className="md:col-span-2">
-                    {renderBudgetTable("Income", sampleBudget.income)}
-                    {renderBudgetTable("Expenses", sampleBudget.expenses)}
-                </div>
-                <div className="space-y-6">
-                    {renderPieChart("Income Sources", sampleBudget.income)}
-                    {renderPieChart("Expense Categories", sampleBudget.expenses)}
-                </div>
+            <div className="space-y-8">
+              <div>
+                {renderBudgetTable("Income", sampleBudget.income)}
+                {renderPieChart("Income Sources", sampleBudget.income)}
+              </div>
+              <div>
+                {renderBudgetTable("Expenses", sampleBudget.expenses)}
+                {renderPieChart("Expense Categories", sampleBudget.expenses)}
+              </div>
             </div>
           </CardContent>
         </Card>
