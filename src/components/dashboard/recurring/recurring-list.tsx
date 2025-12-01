@@ -30,7 +30,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import {
   Dialog,
@@ -40,6 +40,7 @@ import {
   DialogTitle,
   DialogFooter,
   DialogClose,
+  DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import {
@@ -73,7 +74,7 @@ import {
   updateDocumentNonBlocking,
   deleteDocumentNonBlocking,
 } from '@/firebase';
-import { collection, doc, query, where, Timestamp } from 'firebase/firestore';
+import { collection, doc, query, Timestamp } from 'firebase/firestore';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 
@@ -107,6 +108,7 @@ const recurringSchema = z.object({
   startDate: z.date({ required_error: 'Start date is required.' }),
   endDate: z.date().optional(),
   paymentMethod: z.string().min(2, 'Payment method is required.'),
+  description: z.string().min(2, "Description is required"),
 });
 
 type RecurringFormData = z.infer<typeof recurringSchema>;
@@ -141,6 +143,8 @@ export function RecurringList() {
       amount: 0,
       paymentMethod: '',
       startDate: new Date(),
+      endDate: undefined,
+      description: '',
     },
   });
 
@@ -517,5 +521,3 @@ export function RecurringList() {
     </>
   );
 }
-
-    
