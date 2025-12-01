@@ -8,6 +8,7 @@ export type Transaction = {
   amount: number;
   category: 'Income' | 'Expense';
   subcategory: string;
+  paymentMethod: string;
 };
 
 export type RecurringTransaction = {
