@@ -77,7 +77,7 @@ import {
   SuggestMonthlyBudgetOutput,
 } from '@/ai/flows/automated-budget-suggestions';
 import type { Budget, Transaction } from '@/lib/types';
-import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { format, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -92,7 +92,7 @@ import {
   updateDocumentNonBlocking,
   deleteDocumentNonBlocking,
 } from '@/firebase/non-blocking-updates';
-import { collection, query, where, doc } from 'firebase/firestore';
+import { collection, query, where, doc, Timestamp } from 'firebase/firestore';
 
 const COLORS = [
   'hsl(var(--chart-1))',
@@ -135,6 +135,19 @@ const budgetItemSchema = z.object({
 
 type BudgetItemFormData = z.infer<typeof budgetItemSchema>;
 
+const toDate = (date: any): Date | undefined => {
+    if (!date) return undefined;
+    if (date instanceof Date) return date;
+    if (date instanceof Timestamp) return date.toDate();
+    if (typeof date === 'string' || typeof date === 'number') {
+        const parsedDate = new Date(date);
+        if (!isNaN(parsedDate.getTime())) {
+            return parsedDate;
+        }
+    }
+    return undefined;
+  }
+
 export function BudgetTabs() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -168,25 +181,26 @@ export function BudgetTabs() {
   const { data: budgets, isLoading: isBudgetsLoading } =
     useCollection<Budget>(budgetsQuery);
 
-  const transactionsQuery = useMemoFirebase(() => {
+  const allTransactionsQuery = useMemoFirebase(() => {
     if (!user) return null;
-    return query(
-      collection(firestore, 'users', user.uid, 'expenses'),
-      where('date', '>=', monthStart),
-      where('date', '<=', monthEnd)
-    );
-  }, [firestore, user, monthStart, monthEnd]);
+    return collection(firestore, 'users', user.uid, 'expenses');
+  }, [firestore, user]);
 
-  const { data: transactions, isLoading: isTransactionsLoading } =
-    useCollection<Transaction>(transactionsQuery);
+  const { data: allTransactions, isLoading: isTransactionsLoading } =
+    useCollection<Transaction>(allTransactionsQuery);
 
   const budget = useMemo(() => {
     const baseBudget = budgets?.[0] ?? null;
     if (!baseBudget) return null;
 
+    const monthlyTransactions = (allTransactions || []).filter(t => {
+        const transactionDate = toDate(t.date);
+        return transactionDate && isWithinInterval(transactionDate, { start: monthStart, end: monthEnd });
+    });
+
     const calculateActuals = (categories: any[], type: 'Income' | 'Expense') => {
       return categories.map(category => {
-        const actual = (transactions || [])
+        const actual = monthlyTransactions
           .filter(t => t.category === type && t.subcategory === category.name)
           .reduce((sum, t) => sum + t.amount, 0);
         return { ...category, actual };
@@ -198,7 +212,7 @@ export function BudgetTabs() {
       income: calculateActuals(baseBudget.income || [], 'Income'),
       expenses: calculateActuals(baseBudget.expenses || [], 'Expense'),
     };
-  }, [budgets, transactions]);
+  }, [budgets, allTransactions, monthStart, monthEnd]);
 
   const budgetItemForm = useForm<BudgetItemFormData>({
     resolver: zodResolver(budgetItemSchema),
