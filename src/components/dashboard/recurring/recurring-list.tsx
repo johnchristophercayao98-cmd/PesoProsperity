@@ -100,9 +100,9 @@ const expenseCategories = [
 ];
 
 const recurringSchema = z.object({
-  description: z.string().min(3, 'Category is required.'),
+  category: z.string().min(3, 'Category is required.'),
   amount: z.coerce.number().min(0.01, 'Amount must be positive.'),
-  category: z.enum(['Income', 'Expense']),
+  type: z.enum(['Income', 'Expense']),
   frequency: z.enum(['daily', 'weekly', 'monthly', 'yearly']),
   startDate: z.date({ required_error: 'Start date is required.' }),
   endDate: z.date().optional(),
@@ -135,18 +135,27 @@ export function RecurringList() {
   const form = useForm<RecurringFormData>({
     resolver: zodResolver(recurringSchema),
     defaultValues: {
-      category: 'Expense',
+      type: 'Expense',
       frequency: 'monthly',
+      category: '',
+      amount: 0,
+      paymentMethod: '',
+      startDate: new Date(),
     },
   });
 
-  const type = form.watch('category');
+  const type = form.watch('type');
   
   const toDate = (date: any): Date | undefined => {
     if (!date) return undefined;
     if (date instanceof Date) return date;
     if (date instanceof Timestamp) return date.toDate();
-    if (typeof date === 'string' || typeof date === 'number') return new Date(date);
+    if (typeof date === 'string' || typeof date === 'number') {
+        const parsedDate = new Date(date);
+        if (!isNaN(parsedDate.getTime())) {
+            return parsedDate;
+        }
+    }
     return undefined;
   }
 
@@ -162,6 +171,7 @@ export function RecurringList() {
     setEditingTransaction(transaction);
     form.reset({
       ...transaction,
+      type: transaction.category,
       startDate: toDate(transaction.startDate)!,
       endDate: toDate(transaction.endDate),
     });
@@ -181,21 +191,28 @@ export function RecurringList() {
 
   const onSubmit = (data: RecurringFormData) => {
     if (!user) return;
+
+    const submissionData = {
+        ...data,
+        category: data.type, // Map 'type' back to 'category' for Firestore
+        description: data.category
+    };
+
     if (editingTransaction) {
         const transRef = doc(firestore, 'users', user.uid, 'recurringTransactions', editingTransaction.id);
-        updateDocumentNonBlocking(transRef, data);
+        updateDocumentNonBlocking(transRef, submissionData);
         toast({
             title: "Transaction Updated!",
-            description: `Recurring transaction "${data.description}" has been updated.`,
+            description: `Recurring transaction "${data.category}" has been updated.`,
         });
     } else {
         addDocumentNonBlocking(collection(firestore, 'users', user.uid, 'recurringTransactions'), {
-            ...data,
+            ...submissionData,
             userId: user.uid,
         });
         toast({
             title: 'Transaction Added!',
-            description: `Recurring transaction "${data.description}" has been added.`,
+            description: `Recurring transaction "${data.category}" has been added.`,
         });
     }
     
@@ -249,7 +266,7 @@ export function RecurringList() {
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
-                    name="category"
+                    name="type"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Type</FormLabel>
@@ -273,7 +290,7 @@ export function RecurringList() {
                   />
                   <FormField
                     control={form.control}
-                    name="description"
+                    name="category"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Category</FormLabel>
@@ -500,3 +517,5 @@ export function RecurringList() {
     </>
   );
 }
+
+    

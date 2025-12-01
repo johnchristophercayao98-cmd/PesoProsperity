@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -22,11 +21,6 @@ import {
   TableHeader,
   TableRow,
   Badge,
-  ChartContainer,
-  ChartLegend,
-  ChartLegendContent,
-  ChartTooltip,
-  ChartTooltipContent,
   Dialog,
   DialogContent,
   DialogHeader,
@@ -61,13 +55,13 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
 } from '@/components/ui';
-import {
-  ResponsiveContainer,
-  Pie,
-  PieChart,
-  Cell,
-} from 'recharts';
+import { ResponsiveContainer, Pie, PieChart, Cell } from 'recharts';
 import { useToast } from '@/hooks/use-toast';
 import {
   Loader2,
@@ -82,7 +76,7 @@ import {
   suggestMonthlyBudget,
   SuggestMonthlyBudgetOutput,
 } from '@/ai/flows/automated-budget-suggestions';
-import type { Budget, BudgetCategory } from '@/lib/types';
+import type { Budget } from '@/lib/types';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -96,14 +90,7 @@ import {
   updateDocumentNonBlocking,
   deleteDocumentNonBlocking,
 } from '@/firebase';
-import {
-  collection,
-  query,
-  where,
-  doc,
-  deleteDoc,
-  writeBatch,
-} from 'firebase/firestore';
+import { collection, query, where, doc } from 'firebase/firestore';
 
 const COLORS = [
   'hsl(var(--chart-1))',
@@ -181,13 +168,18 @@ export function BudgetTabs() {
 
   const budgetItemForm = useForm<BudgetItemFormData>({
     resolver: zodResolver(budgetItemSchema),
+    defaultValues: {
+      type: 'expense',
+      category: '',
+      budgeted: 0,
+    },
   });
   const itemType = budgetItemForm.watch('type');
 
   const handleAddBudgetItem = async (data: BudgetItemFormData) => {
     if (!user || !firestore) return;
 
-    const newCategory: BudgetCategory = {
+    const newCategory = {
       name: data.category,
       budgeted: data.budgeted,
       actual: 0,
@@ -229,7 +221,7 @@ export function BudgetTabs() {
         'MMMM yyyy'
       )}.`,
     });
-    budgetItemForm.reset({ category: '', budgeted: 0, type: 'expense' });
+    budgetItemForm.reset();
     setIsAddBudgetItemDialogOpen(false);
   };
 
@@ -299,7 +291,7 @@ export function BudgetTabs() {
 
   const renderBudgetTable = (
     title: string,
-    data: BudgetCategory[],
+    data: any[],
     type: 'income' | 'expense'
   ) => (
     <div className="mb-4">
@@ -371,7 +363,7 @@ export function BudgetTabs() {
     </div>
   );
 
-  const renderPieChart = (title: string, data: BudgetCategory[]) => {
+  const renderPieChart = (title: string, data: any[]) => {
     const chartData = data.map((item) => ({
       name: item.name,
       value: item.actual,
@@ -688,3 +680,5 @@ export function BudgetTabs() {
     </>
   );
 }
+
+    

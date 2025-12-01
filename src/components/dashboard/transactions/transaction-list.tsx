@@ -120,6 +120,14 @@ export function TransactionList() {
 
   const form = useForm<TransactionFormData>({
     resolver: zodResolver(transactionSchema),
+    defaultValues: {
+      description: '',
+      amount: 0,
+      category: 'Expense',
+      subcategory: '',
+      date: new Date(),
+      paymentMethod: '',
+    }
   });
 
   const category = form.watch('category');
@@ -128,7 +136,12 @@ export function TransactionList() {
     if (!date) return undefined;
     if (date instanceof Date) return date;
     if (date instanceof Timestamp) return date.toDate();
-    if (typeof date === 'string' || typeof date === 'number') return new Date(date);
+    if (typeof date === 'string' || typeof date === 'number') {
+        const parsedDate = new Date(date);
+        if (!isNaN(parsedDate.getTime())) {
+            return parsedDate;
+        }
+    }
     return undefined;
   }
 
@@ -145,8 +158,6 @@ export function TransactionList() {
     form.reset({
       ...transaction,
       date: toDate(transaction.date)!,
-      // @ts-ignore
-      paymentMethod: transaction.paymentMethod || ""
     });
     setIsDialogOpen(true);
   };
@@ -421,3 +432,5 @@ export function TransactionList() {
     </>
   );
 }
+
+    

@@ -117,9 +117,21 @@ export function DebtManager() {
 
   const { data: debts, isLoading: isLoadingDebts } = useCollection<Debt>(debtsQuery);
 
-  const addForm = useForm<DebtFormData>({ resolver: zodResolver(debtSchema) });
+  const addForm = useForm<DebtFormData>({ 
+    resolver: zodResolver(debtSchema),
+    defaultValues: {
+      creditor: '',
+      totalAmount: 0,
+      amountPaid: 0,
+      interestRate: 0,
+      nextPaymentDue: new Date(),
+    }
+  });
   const payForm = useForm<PaymentFormData>({
     resolver: zodResolver(paymentSchema),
+    defaultValues: {
+      amount: 0,
+    }
   });
   
   const toDate = (date: any): Date | undefined => {
@@ -468,3 +480,5 @@ export function DebtManager() {
     </>
   );
 }
+
+    

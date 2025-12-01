@@ -94,17 +94,30 @@ export function GoalsDisplay() {
 
   const form = useForm<GoalFormData>({
     resolver: zodResolver(goalSchema),
+    defaultValues: {
+      name: '',
+      targetAmount: 0,
+      currentAmount: 0,
+    }
   });
 
   const addAmountForm = useForm<AddAmountFormData>({
     resolver: zodResolver(addAmountSchema),
+    defaultValues: {
+      amount: 0,
+    }
   });
   
   const toDate = (date: any): Date | undefined => {
     if (!date) return undefined;
     if (date instanceof Date) return date;
     if (date instanceof Timestamp) return date.toDate();
-    if (typeof date === 'string' || typeof date === 'number') return new Date(date);
+    if (typeof date === 'string' || typeof date === 'number') {
+        const parsedDate = new Date(date);
+        if (!isNaN(parsedDate.getTime())) {
+            return parsedDate;
+        }
+    }
     return undefined;
   }
 
@@ -153,12 +166,14 @@ export function GoalsDisplay() {
         description: `Your goal "${data.name}" has been successfully updated.`,
       });
     } else {
-      const newGoal: Omit<FinancialGoal, 'id'> = {
-        userId: user.uid,
+      const newGoal: Omit<FinancialGoal, 'id' | 'userId'> = {
         ...data,
         currentAmount: data.currentAmount || 0,
       };
-      addDocumentNonBlocking(collection(firestore, 'users', user.uid, 'financialGoals'), newGoal);
+      addDocumentNonBlocking(collection(firestore, 'users', user.uid, 'financialGoals'), {
+        ...newGoal,
+        userId: user.uid
+      });
       toast({
         title: 'Goal Added!',
         description: `Your new goal "${data.name}" has been successfully added.`,
@@ -444,3 +459,5 @@ export function GoalsDisplay() {
     </>
   );
 }
+
+    
