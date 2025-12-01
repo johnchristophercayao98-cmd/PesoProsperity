@@ -1,14 +1,14 @@
 import { PageHeader } from "@/components/dashboard/page-header";
-import { CashflowForecast } from "@/components/dashboard/cash-flow/cashflow-forecast";
+import { CashflowStatement } from "@/components/dashboard/cash-flow/cashflow-statement";
 
 export default function ForecastsPage() {
     return (
         <div>
             <PageHeader
-                title="Cash Flow Forecasts"
-                description="Project your future cash flow to make proactive business decisions."
+                title="Cash Flow Statement"
+                description="Track your cash inflows and outflows to see your running cash balance."
             />
-            <CashflowForecast />
+            <CashflowStatement />
         </div>
     )
 }
