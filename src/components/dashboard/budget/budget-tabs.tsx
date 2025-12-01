@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Button,
   Card,
@@ -76,7 +76,7 @@ import {
   suggestMonthlyBudget,
   SuggestMonthlyBudgetOutput,
 } from '@/ai/flows/automated-budget-suggestions';
-import type { Budget } from '@/lib/types';
+import type { Budget, BudgetCategory } from '@/lib/types';
 import type { Transaction } from '@/lib/types';
 import { format, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { z } from 'zod';
@@ -161,6 +161,7 @@ export function BudgetTabs() {
     docId: string;
     name: string;
   } | null>(null);
+  const [editingBudgetItem, setEditingBudgetItem] = useState<{item: BudgetCategory, type: 'income' | 'expense'} | null>(null);
 
   const firestore = useFirestore();
   const { user } = useUser();
@@ -233,53 +234,98 @@ export function BudgetTabs() {
   });
   const itemType = budgetItemForm.watch('type');
 
+  useEffect(() => {
+    if (editingBudgetItem) {
+      budgetItemForm.reset({
+        type: editingBudgetItem.type,
+        category: editingBudgetItem.item.name,
+        budgeted: editingBudgetItem.item.budgeted,
+      });
+    } else {
+      budgetItemForm.reset({
+        type: 'expense',
+        category: '',
+        budgeted: 0,
+      });
+    }
+  }, [editingBudgetItem, budgetItemForm]);
+
+  const handleDialogOpenChange = (open: boolean) => {
+    setIsAddBudgetItemDialogOpen(open);
+    if (!open) {
+      setEditingBudgetItem(null);
+    }
+  };
+
   const handleAddBudgetItem = async (data: BudgetItemFormData) => {
     if (!user || !firestore) return;
 
-    const newCategory = {
-      name: data.category,
-      budgeted: data.budgeted,
-      actual: 0,
-    };
+    if (budget && editingBudgetItem) {
+      // Editing existing item
+      const updatedCategories = (budget[editingBudgetItem.type] || []).map(cat => {
+        if (cat.name === editingBudgetItem.item.name) {
+          return { ...cat, name: data.category, budgeted: data.budgeted };
+        }
+        return cat;
+      });
+      
+      const updatePayload = {
+        ...budget,
+        [editingBudgetItem.type]: updatedCategories
+      };
 
-    let updatedIncome = budget?.income ? [...budget.income] : [];
-    let updatedExpenses = budget?.expenses ? [...budget.expenses] : [];
-
-    if (data.type === 'income') {
-      updatedIncome.push(newCategory);
-    } else {
-      updatedExpenses.push(newCategory);
-    }
-
-    if (budget) {
-      // Update existing budget document
       const budgetRef = doc(firestore, 'users', user.uid, 'budgets', budget.id);
       updateDocumentNonBlocking(budgetRef, {
-        income: updatedIncome.map(({ actual, ...rest }) => rest), // Don't save actual
-        expenses: updatedExpenses.map(({ actual, ...rest }) => rest),
+        income: updatePayload.income.map(({ actual, ...rest }) => rest), // Don't save actual
+        expenses: updatePayload.expenses.map(({ actual, ...rest }) => rest),
       });
+
+      toast({
+        title: 'Budget Item Updated!',
+        description: `${data.category} has been updated.`,
+      });
+
     } else {
-      // Create new budget document
-      const budgetCollRef = collection(firestore, 'users', user.uid, 'budgets');
-      addDocumentNonBlocking(budgetCollRef, {
-        userId: user.uid,
-        name: `${format(selectedDate, 'MMMM yyyy')} Budget`,
-        startDate: startOfMonth(selectedDate),
-        endDate: endOfMonth(selectedDate),
-        income: data.type === 'income' ? [newCategory] : [],
-        expenses: data.type === 'expense' ? [newCategory] : [],
+      // Adding new item
+      const newCategory = {
+        name: data.category,
+        budgeted: data.budgeted,
+      };
+
+      let updatedIncome = budget?.income ? [...budget.income.map(({ actual, ...rest }) => rest)] : [];
+      let updatedExpenses = budget?.expenses ? [...budget.expenses.map(({ actual, ...rest }) => rest)] : [];
+
+      if (data.type === 'income') {
+        updatedIncome.push(newCategory);
+      } else {
+        updatedExpenses.push(newCategory);
+      }
+      
+      if (budget) {
+        const budgetRef = doc(firestore, 'users', user.uid, 'budgets', budget.id);
+        updateDocumentNonBlocking(budgetRef, { income: updatedIncome, expenses: updatedExpenses });
+      } else {
+        const budgetCollRef = collection(firestore, 'users', user.uid, 'budgets');
+        addDocumentNonBlocking(budgetCollRef, {
+          userId: user.uid,
+          name: `${format(selectedDate, 'MMMM yyyy')} Budget`,
+          startDate: startOfMonth(selectedDate),
+          endDate: endOfMonth(selectedDate),
+          income: data.type === 'income' ? [newCategory] : [],
+          expenses: data.type === 'expense' ? [newCategory] : [],
+        });
+      }
+       toast({
+        title: 'Budget Item Added!',
+        description: `${data.category} has been added to your budget for ${format(
+          selectedDate,
+          'MMMM yyyy'
+        )}.`,
       });
     }
 
-    toast({
-      title: 'Budget Item Added!',
-      description: `${data.category} has been added to your budget for ${format(
-        selectedDate,
-        'MMMM yyyy'
-      )}.`,
-    });
     budgetItemForm.reset();
-    setIsAddBudgetItemDialogOpen(false);
+    handleDialogOpenChange(false);
   };
 
   const handleDeleteItem = () => {
@@ -396,7 +442,8 @@ export function BudgetTabs() {
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem
                         onClick={() => {
-                          /* TODO: Implement Edit */
+                          setEditingBudgetItem({ item, type });
+                          setIsAddBudgetItemDialogOpen(true);
                         }}
                       >
                         Edit
@@ -510,7 +557,7 @@ export function BudgetTabs() {
                     />
                   </PopoverContent>
                 </Popover>
-                <Button onClick={() => setIsAddBudgetItemDialogOpen(true)}>
+                <Button onClick={() => handleDialogOpenChange(true)}>
                   <PlusCircle className="mr-2 h-4 w-4" />
                   Add Item
                 </Button>
@@ -546,7 +593,7 @@ export function BudgetTabs() {
                     No budget found for {format(selectedDate, 'MMMM yyyy')}.
                   </p>
                   <Button
-                    onClick={() => setIsAddBudgetItemDialogOpen(true)}
+                    onClick={() => handleDialogOpenChange(true)}
                     className="mt-4"
                   >
                     <PlusCircle className="mr-2 h-4 w-4" />
@@ -626,13 +673,13 @@ export function BudgetTabs() {
 
       <Dialog
         open={isAddBudgetItemDialogOpen}
-        onOpenChange={setIsAddBudgetItemDialogOpen}
+        onOpenChange={handleDialogOpenChange}
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Add Budget Item</DialogTitle>
+            <DialogTitle>{editingBudgetItem ? 'Edit' : 'Add'} Budget Item</DialogTitle>
             <DialogDescription>
-              Add a new income or expense category to your budget for{' '}
+              {editingBudgetItem ? 'Update this item' : 'Add a new income or expense category'} to your budget for{' '}
               {format(selectedDate, 'MMMM yyyy')}.
             </DialogDescription>
           </DialogHeader>
@@ -650,6 +697,7 @@ export function BudgetTabs() {
                     <Select
                       onValueChange={field.onChange}
                       defaultValue={field.value}
+                      disabled={!!editingBudgetItem}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -711,7 +759,7 @@ export function BudgetTabs() {
                     Cancel
                   </Button>
                 </DialogClose>
-                <Button type="submit">Add Item</Button>
+                <Button type="submit">{editingBudgetItem ? 'Save Changes' : 'Add Item'}</Button>
               </DialogFooter>
             </form>
           </Form>
