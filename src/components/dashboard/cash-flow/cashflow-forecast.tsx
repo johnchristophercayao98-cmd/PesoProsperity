@@ -2,11 +2,11 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react";
-import { format, addMonths, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
+import { format, addMonths, subMonths, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { DollarSign, TrendingDown, TrendingUp, Info, Calendar as CalendarIcon, Loader2 } from "lucide-react"
-import { Line, LineChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts"
+import { LineChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts"
 import {
   ChartContainer,
   ChartTooltip,
@@ -17,14 +17,14 @@ import {
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
-import type { Budget, Transaction } from "@/lib/types";
+import type { Transaction } from "@/lib/types";
 import {
   useFirestore,
   useUser,
   useCollection,
   useMemoFirebase,
 } from '@/firebase';
-import { collection, query, where, Timestamp } from 'firebase/firestore';
+import { collection, query, Timestamp } from 'firebase/firestore';
 
 
 const chartConfig = {
@@ -43,80 +43,79 @@ const toDate = (date: any): Date | undefined => {
 
 export function CashflowForecast() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [forecastData, setForecastData] = useState<any[]>([]);
-  const [initialBalance, setInitialBalance] = useState(0);
-
+  
   const firestore = useFirestore();
   const { user } = useUser();
-
-  const budgetsQuery = useMemoFirebase(() => {
-    if (!user) return null;
-    return query(collection(firestore, 'users', user.uid, 'budgets'));
-  }, [firestore, user]);
-
+  
   const transactionsQuery = useMemoFirebase(() => {
     if (!user) return null;
     return query(collection(firestore, 'users', user.uid, 'expenses'));
   }, [firestore, user]);
 
-  const { data: budgets, isLoading: isLoadingBudgets } = useCollection<Budget>(budgetsQuery);
   const { data: transactions, isLoading: isLoadingTransactions } = useCollection<Transaction>(transactionsQuery);
-  
-  const isLoading = isLoadingBudgets || isLoadingTransactions;
 
-  useEffect(() => {
-    if (isLoading || !transactions) return;
+  const { forecastData, initialBalance, netCashFlow, lowestPoint, lowestPointMonth } = useMemo(() => {
+    if (!transactions) {
+      return {
+        forecastData: [],
+        initialBalance: 0,
+        netCashFlow: 0,
+        lowestPoint: 0,
+        lowestPointMonth: ''
+      };
+    }
 
+    // 1. Calculate Initial Balance
     const totalIncome = transactions
         .filter(t => t.category === 'Income')
         .reduce((sum, t) => sum + t.amount, 0);
-
     const totalExpenses = transactions
-        .filter(t => t.category === 'Expense')
+        .filter(t => t.category !== 'Income')
         .reduce((sum, t) => sum + t.amount, 0);
+    const initialBalance = totalIncome - totalExpenses;
 
-    setInitialBalance(totalIncome - totalExpenses);
-  }, [transactions, isLoading])
+    // 2. Calculate historical monthly averages
+    const now = new Date();
+    const twelveMonthsAgo = startOfMonth(subMonths(now, 11));
+    const historicalTransactions = transactions.filter(t => {
+      const transDate = toDate(t.date);
+      return transDate && transDate >= twelveMonthsAgo && transDate <= now;
+    });
 
-  useEffect(() => {
-    if (isLoading || !budgets) return;
-
-    const generateForecastData = (startDate: Date) => {
-        const data = [];
-        let lastBalance = initialBalance;
-
-        for (let i = 0; i < 6; i++) {
-            const date = addMonths(startDate, i);
-
-            const relevantBudget = budgets.find(b => {
-              const budgetStart = toDate(b.startDate)!;
-              return budgetStart.getMonth() === date.getMonth() && budgetStart.getFullYear() === date.getFullYear();
-            });
-            
-            const cashIn = relevantBudget?.income.reduce((sum, item) => sum + item.budgeted, 0) || 0;
-            const cashOut = relevantBudget?.expenses.reduce((sum, item) => sum + item.budgeted, 0) || 0;
-            
-            const balance = lastBalance + cashIn - cashOut;
-
-            data.push({
-                month: format(date, "MMM yyyy"),
-                cashIn,
-                cashOut,
-                balance
-            });
-            lastBalance = balance;
-        }
-        return data;
-    }
+    const monthlyIncome = historicalTransactions.filter(t => t.category === 'Income').reduce((sum, t) => sum + t.amount, 0);
+    const monthlyExpenses = historicalTransactions.filter(t => t.category !== 'Income').reduce((sum, t) => sum + t.amount, 0);
     
-    setForecastData(generateForecastData(selectedDate));
-  }, [selectedDate, budgets, isLoading, initialBalance]);
+    // Use 12 months for average, or less if data is sparse, but at least 1 to avoid division by zero
+    const monthCount = Math.max(1, 12); 
+    const avgMonthlyCashIn = monthlyIncome / monthCount;
+    const avgMonthlyCashOut = monthlyExpenses / monthCount;
+    
+    // 3. Generate Forecast Data
+    const forecast = [];
+    let lastBalance = initialBalance;
+    for (let i = 0; i < 6; i++) {
+        const date = addMonths(selectedDate, i);
+        const balance = lastBalance + avgMonthlyCashIn - avgMonthlyCashOut;
 
-  const lowestPoint = useMemo(() => Math.min(...forecastData.map(d => d.balance)), [forecastData]);
-  const lowestPointMonth = useMemo(() => forecastData.find(d => d.balance === lowestPoint)?.month || '', [forecastData, lowestPoint]);
-  const netCashFlow = useMemo(() => forecastData.reduce((acc, d) => acc + d.cashIn - d.cashOut, 0), [forecastData]);
+        forecast.push({
+            month: format(date, "MMM yyyy"),
+            cashIn: avgMonthlyCashIn,
+            cashOut: avgMonthlyCashOut,
+            balance
+        });
+        lastBalance = balance;
+    }
 
-  if (isLoading) {
+    const netCashFlow = forecast.reduce((acc, d) => acc + d.cashIn - d.cashOut, 0);
+    const lowestPoint = Math.min(...forecast.map(d => d.balance));
+    const lowestPointMonth = forecast.find(d => d.balance === lowestPoint)?.month || '';
+
+    return { forecastData: forecast, initialBalance, netCashFlow, lowestPoint, lowestPointMonth };
+
+  }, [transactions, selectedDate]);
+
+
+  if (isLoadingTransactions) {
     return (
       <div className="flex items-center justify-center p-8">
           <Loader2 className="mr-2 h-8 w-8 animate-spin" />
@@ -127,8 +126,8 @@ export function CashflowForecast() {
 
   return (
     <div className="grid gap-6">
-        <div className="flex items-center justify-between">
-            <Alert className="w-fit">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <Alert className="w-full sm:w-fit">
                 <Info className="h-4 w-4" />
                 <AlertTitle>Cash Reserve Reminder</AlertTitle>
                 <AlertDescription>
@@ -137,7 +136,7 @@ export function CashflowForecast() {
             </Alert>
             <Popover>
                 <PopoverTrigger asChild>
-                <Button variant="outline">
+                <Button variant="outline" className="w-full sm:w-auto">
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {format(selectedDate, "MMMM yyyy")}
                 </Button>
@@ -161,7 +160,7 @@ export function CashflowForecast() {
         <Card className="md:col-span-2">
           <CardHeader>
             <CardTitle>6-Month Cash Flow Forecast</CardTitle>
-            <CardDescription>Starting from {format(selectedDate, "MMMM yyyy")}.</CardDescription>
+            <CardDescription>Starting from {format(selectedDate, "MMMM yyyy")}. Based on historical averages.</CardDescription>
           </CardHeader>
           <CardContent>
             <ChartContainer config={chartConfig} className="h-[350px] w-full">
@@ -169,12 +168,22 @@ export function CashflowForecast() {
                 <LineChart data={forecastData}>
                   <CartesianGrid vertical={false} />
                   <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} />
-                  <YAxis tickFormatter={(value) => `₱${value/1000}k`} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <YAxis tickFormatter={(value) => `₱${(value/1000).toFixed(0)}k`} />
+                  <Tooltip
+                    content={
+                      <ChartTooltipContent
+                        formatter={(value, name) => {
+                          if (name === "cashIn") return [`+₱${value.toLocaleString(undefined, { maximumFractionDigits: 0})}`, "Avg. Monthly Cash In"]
+                          if (name === "cashOut") return [`-₱${value.toLocaleString(undefined, { maximumFractionDigits: 0})}`, "Avg. Monthly Cash Out"]
+                          return [`₱${value.toLocaleString(undefined, { maximumFractionDigits: 0})}`, "Projected Balance"]
+                        }}
+                      />
+                    }
+                  />
                   <ChartLegend content={<ChartLegendContent />} />
-                  <Line type="monotone" dataKey="balance" stroke="var(--color-balance)" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="cashIn" stroke="var(--color-cashIn)" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="cashOut" stroke="var(--color-cashOut)" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="balance" stroke="var(--color-balance)" strokeWidth={2} dot={true} />
+                  <Line type="monotone" dataKey="cashIn" stroke="var(--color-cashIn)" strokeWidth={2} dot={false} strokeDasharray="5 5" />
+                  <Line type="monotone" dataKey="cashOut" stroke="var(--color-cashOut)" strokeWidth={2} dot={false} strokeDasharray="5 5" />
                 </LineChart>
               </ResponsiveContainer>
             </ChartContainer>
@@ -188,7 +197,7 @@ export function CashflowForecast() {
                 </CardHeader>
                 <CardContent>
                     <div className={`text-2xl font-bold ${netCashFlow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {netCashFlow >= 0 ? '+' : '-'}₱{Math.abs(netCashFlow).toLocaleString()}
+                        {netCashFlow >= 0 ? '+' : '-'}₱{Math.abs(netCashFlow).toLocaleString(undefined, { maximumFractionDigits: 0})}
                     </div>
                     <p className="text-xs text-muted-foreground">in the next 6 months</p>
                 </CardContent>
@@ -199,7 +208,7 @@ export function CashflowForecast() {
                     <TrendingDown className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div className={`text-2xl font-bold ${lowestPoint < 0 ? 'text-red-600' : ''}`}>₱{lowestPoint.toLocaleString()}</div>
+                    <div className={`text-2xl font-bold ${lowestPoint < 0 ? 'text-red-600' : ''}`}>₱{lowestPoint.toLocaleString(undefined, { maximumFractionDigits: 0})}</div>
                     <p className="text-xs text-muted-foreground">in {lowestPointMonth}</p>
                 </CardContent>
              </Card>
@@ -209,7 +218,7 @@ export function CashflowForecast() {
                     <DollarSign className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">₱{initialBalance.toLocaleString()}</div>
+                    <div className="text-2xl font-bold">₱{initialBalance.toLocaleString(undefined, { maximumFractionDigits: 0})}</div>
                     <p className="text-xs text-muted-foreground">Current available cash</p>
                 </CardContent>
              </Card>
