@@ -86,10 +86,12 @@ import {
   useUser,
   useCollection,
   useMemoFirebase,
+} from '@/firebase';
+import {
   addDocumentNonBlocking,
   updateDocumentNonBlocking,
   deleteDocumentNonBlocking,
-} from '@/firebase';
+} from '@/firebase/non-blocking-updates';
 import { collection, query, where, doc } from 'firebase/firestore';
 
 const COLORS = [
@@ -174,16 +176,17 @@ export function BudgetTabs() {
       where('date', '<=', monthEnd)
     );
   }, [firestore, user, monthStart, monthEnd]);
-  
-  const { data: transactions, isLoading: isTransactionsLoading } = useCollection<Transaction>(transactionsQuery);
+
+  const { data: transactions, isLoading: isTransactionsLoading } =
+    useCollection<Transaction>(transactionsQuery);
 
   const budget = useMemo(() => {
     const baseBudget = budgets?.[0] ?? null;
-    if (!baseBudget || !transactions) return baseBudget;
+    if (!baseBudget) return null;
 
     const calculateActuals = (categories: any[], type: 'Income' | 'Expense') => {
       return categories.map(category => {
-        const actual = transactions
+        const actual = (transactions || [])
           .filter(t => t.category === type && t.subcategory === category.name)
           .reduce((sum, t) => sum + t.amount, 0);
         return { ...category, actual };
@@ -195,9 +198,7 @@ export function BudgetTabs() {
       income: calculateActuals(baseBudget.income || [], 'Income'),
       expenses: calculateActuals(baseBudget.expenses || [], 'Expense'),
     };
-
   }, [budgets, transactions]);
-
 
   const budgetItemForm = useForm<BudgetItemFormData>({
     resolver: zodResolver(budgetItemSchema),
@@ -231,8 +232,8 @@ export function BudgetTabs() {
       // Update existing budget document
       const budgetRef = doc(firestore, 'users', user.uid, 'budgets', budget.id);
       updateDocumentNonBlocking(budgetRef, {
-        income: updatedIncome.map(({actual, ...rest}) => rest), // Don't save actual
-        expenses: updatedExpenses.map(({actual, ...rest}) => rest),
+        income: updatedIncome.map(({ actual, ...rest }) => rest), // Don't save actual
+        expenses: updatedExpenses.map(({ actual, ...rest }) => rest),
       });
     } else {
       // Create new budget document
@@ -270,8 +271,8 @@ export function BudgetTabs() {
 
     const budgetRef = doc(firestore, 'users', user.uid, 'budgets', budget.id);
     updateDocumentNonBlocking(budgetRef, {
-      income: updatedIncome.map(({actual, ...rest}) => rest),
-      expenses: updatedExpenses.map(({actual, ...rest}) => rest),
+      income: updatedIncome.map(({ actual, ...rest }) => rest),
+      expenses: updatedExpenses.map(({ actual, ...rest }) => rest),
     });
 
     toast({
