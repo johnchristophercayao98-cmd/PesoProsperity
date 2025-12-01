@@ -2,11 +2,11 @@
 "use client"
 
 import { useMemo } from "react";
-import { addMonths, format, startOfMonth, endOfMonth } from "date-fns";
+import { addMonths, format, startOfMonth, endOfMonth, subMonths, isWithinInterval } from "date-fns";
 import { DollarSign, Info, Loader2, TrendingDown, TrendingUp } from "lucide-react";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
-import type { Transaction, RecurringTransaction } from "@/lib/types";
+import type { Transaction } from "@/lib/types";
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,28 +36,22 @@ export function CashflowForecast() {
     if (!user) return null;
     return query(collection(firestore, 'users', user.uid, 'expenses'));
   }, [firestore, user]);
-  
-  const recurringQuery = useMemoFirebase(() => {
-    if (!user) return null;
-    return query(collection(firestore, 'users', user.uid, 'recurringTransactions'));
-  }, [firestore, user]);
 
   const { data: transactions, isLoading: isLoadingTransactions } = useCollection<Transaction>(transactionsQuery);
-  const { data: recurringTransactions, isLoading: isLoadingRecurring } = useCollection<RecurringTransaction>(recurringQuery);
 
-  const { forecastData, initialBalance, netCashFlow, lowestPoint, lowestPointMonth, selectedDate } = useMemo(() => {
-    const currentDate = new Date();
-    if (!transactions || !recurringTransactions) {
+  const { forecastData, initialBalance, netCashFlow, lowestPoint, lowestPointMonth } = useMemo(() => {
+    const now = new Date();
+    if (!transactions) {
       return {
         forecastData: [],
         initialBalance: 0,
         netCashFlow: 0,
         lowestPoint: 0,
         lowestPointMonth: '',
-        selectedDate: currentDate
       };
     }
 
+    // Calculate initial balance from all transactions
     const totalIncome = transactions
         .filter(t => t.category === 'Income')
         .reduce((sum, t) => sum + t.amount, 0);
@@ -66,37 +60,35 @@ export function CashflowForecast() {
         .reduce((sum, t) => sum + t.amount, 0);
     const initialBalance = totalIncome - totalExpenses;
 
+    // Filter transactions from the last 12 months for averaging
+    const twelveMonthsAgo = subMonths(now, 12);
+    const recentTransactions = transactions.filter(t => {
+        const transactionDate = toDate(t.date);
+        return transactionDate && transactionDate >= twelveMonthsAgo && transactionDate <= now;
+    });
+
+    const monthlyIncome = recentTransactions
+        .filter(t => t.category === 'Income')
+        .reduce((sum, t) => sum + t.amount, 0);
+    
+    const monthlyExpenses = recentTransactions
+        .filter(t => t.category !== 'Income')
+        .reduce((sum, t) => sum + t.amount, 0);
+
+    const avgMonthlyCashIn = monthlyIncome / 12;
+    const avgMonthlyCashOut = monthlyExpenses / 12;
+
     const forecast = [];
     let lastBalance = initialBalance;
 
     for (let i = 0; i < 6; i++) {
-        const date = addMonths(currentDate, i);
-        const monthStart = startOfMonth(date);
-        const monthEnd = endOfMonth(date);
-
-        const monthlyRecurring = recurringTransactions.filter(t => {
-            const startDate = toDate(t.startDate);
-            const endDate = toDate(t.endDate);
-            if (!startDate) return false;
-            const startsBeforeOrInMonth = startDate <= monthEnd;
-            const endsAfterOrInMonth = !endDate || endDate >= monthStart;
-            return startsBeforeOrInMonth && endsAfterOrInMonth;
-        });
-        
-        const monthlyCashIn = monthlyRecurring
-            .filter(t => t.category === 'Income')
-            .reduce((sum, t) => sum + t.amount, 0);
-            
-        const monthlyCashOut = monthlyRecurring
-            .filter(t => t.category === 'Expense')
-            .reduce((sum, t) => sum + t.amount, 0);
-
-        const balance = lastBalance + monthlyCashIn - monthlyCashOut;
+        const date = addMonths(now, i);
+        const balance = lastBalance + avgMonthlyCashIn - avgMonthlyCashOut;
 
         forecast.push({
             month: format(date, "MMM yyyy"),
-            cashIn: monthlyCashIn,
-            cashOut: monthlyCashOut,
+            cashIn: avgMonthlyCashIn,
+            cashOut: avgMonthlyCashOut,
             balance
         });
         lastBalance = balance;
@@ -106,7 +98,7 @@ export function CashflowForecast() {
     const allBalances = [initialBalance, ...forecast.map(d => d.balance)];
     const lowestPoint = allBalances.length > 0 ? Math.min(...allBalances) : 0;
     
-    let lowestPointMonth = format(currentDate, "MMM yyyy");
+    let lowestPointMonth = format(now, "MMM yyyy");
     if(lowestPoint !== initialBalance){
       const lowestPointMonthObj = forecast.find(d => d.balance === lowestPoint);
       if (lowestPointMonthObj) {
@@ -114,12 +106,12 @@ export function CashflowForecast() {
       }
     }
 
-    return { forecastData: forecast, initialBalance, netCashFlow, lowestPoint, lowestPointMonth, selectedDate: currentDate };
+    return { forecastData: forecast, initialBalance, netCashFlow, lowestPoint, lowestPointMonth };
 
-  }, [transactions, recurringTransactions]);
+  }, [transactions]);
 
 
-  if (isLoadingTransactions || isLoadingRecurring) {
+  if (isLoadingTransactions) {
     return (
       <div className="flex items-center justify-center p-8">
           <Loader2 className="mr-2 h-8 w-8 animate-spin" />
@@ -143,7 +135,7 @@ export function CashflowForecast() {
         <Card className="md:col-span-2">
           <CardHeader>
             <CardTitle>6-Month Cash Flow Forecast</CardTitle>
-            <CardDescription>Starting from {format(selectedDate, "MMMM yyyy")}. Based on recurring transactions.</CardDescription>
+            <CardDescription>Based on historical transaction averages over the last 12 months.</CardDescription>
           </CardHeader>
           <CardContent>
             <ChartContainer config={chartConfig} className="h-[350px] w-full">
@@ -157,8 +149,8 @@ export function CashflowForecast() {
                       <ChartTooltipContent
                         formatter={(value, name) => {
                           const formattedValue = `₱${Math.abs(Number(value)).toLocaleString(undefined, { maximumFractionDigits: 0})}`;
-                          if (name === "cashIn") return [`+${formattedValue}`, "Projected Cash In"]
-                          if (name === "cashOut") return [`-${formattedValue}`, "Projected Cash Out"]
+                          if (name === "cashIn") return [`+${formattedValue}`, "Avg. Monthly Cash In"]
+                          if (name === "cashOut") return [`-${formattedValue}`, "Avg. Monthly Cash Out"]
                           return [formattedValue, "Projected Balance"]
                         }}
                       />
