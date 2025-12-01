@@ -1,4 +1,5 @@
 "use client"
+import { useMemo } from "react"
 import {
   Card,
   CardContent,
@@ -13,7 +14,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import {
   ChartContainer,
@@ -23,18 +23,12 @@ import {
   ChartLegendContent,
 } from "@/components/ui/chart"
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer } from "recharts"
-import { mainStats, recentTransactions, financialGoals } from "@/lib/data"
 import { cn } from "@/lib/utils"
-import { format } from "date-fns"
-
-const chartData = [
-  { month: "Apr", income: 18600, expenses: 8000 },
-  { month: "May", income: 30500, expenses: 13980 },
-  { month: "Jun", income: 23700, expenses: 9800 },
-  { month: "Jul", income: 27800, expenses: 12900 },
-  { month: "Aug", income: 18900, expenses: 4800 },
-  { month: "Sep", income: 23900, expenses: 11800 },
-]
+import { format, startOfMonth, endOfMonth, subMonths, isWithinInterval } from "date-fns"
+import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase"
+import { collection, query, orderBy, limit, Timestamp } from "firebase/firestore"
+import type { Transaction, FinancialGoal } from "@/lib/types"
+import { Loader2 } from "lucide-react"
 
 const chartConfig = {
   income: {
@@ -47,7 +41,139 @@ const chartConfig = {
   },
 }
 
+const toDate = (date: any): Date | undefined => {
+  if (!date) return undefined;
+  if (date instanceof Date) return date;
+  if (date instanceof Timestamp) return date.toDate();
+  if (typeof date === 'string' || typeof date === 'number') {
+    const parsedDate = new Date(date);
+    if (!isNaN(parsedDate.getTime())) {
+      return parsedDate;
+    }
+  }
+  return undefined;
+};
+
+
 export default function DashboardPage() {
+  const { user } = useUser();
+  const firestore = useFirestore();
+
+  const transactionsQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(collection(firestore, 'users', user.uid, 'expenses'), orderBy('date', 'desc'));
+  }, [firestore, user]);
+
+  const goalsQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(collection(firestore, 'users', user.uid, 'financialGoals'));
+  }, [firestore, user]);
+
+  const { data: transactions, isLoading: isLoadingTransactions } = useCollection<Transaction>(transactionsQuery);
+  const { data: financialGoals, isLoading: isLoadingGoals } = useCollection<FinancialGoal>(goalsQuery);
+
+  const {
+    netRevenue,
+    totalExpenses,
+    profitMargin,
+    cashReserve,
+    chartData,
+    recentTransactions
+  } = useMemo(() => {
+    if (!transactions) {
+      return {
+        netRevenue: 0,
+        totalExpenses: 0,
+        profitMargin: 0,
+        cashReserve: 0,
+        chartData: [],
+        recentTransactions: []
+      };
+    }
+
+    const now = new Date();
+    const currentMonthStart = startOfMonth(now);
+    const currentMonthEnd = endOfMonth(now);
+    
+    let netRevenue = 0;
+    let totalExpenses = 0;
+    let cashReserve = 0;
+
+    transactions.forEach(t => {
+      const transactionDate = toDate(t.date);
+      if (!transactionDate) return;
+
+      if (isWithinInterval(transactionDate, { start: currentMonthStart, end: currentMonthEnd })) {
+        if (t.category === 'Income') {
+          netRevenue += t.amount;
+        } else {
+          totalExpenses += t.amount;
+        }
+      }
+
+      if (t.category === 'Income') {
+        cashReserve += t.amount;
+      } else {
+        cashReserve -= t.amount;
+      }
+    });
+
+    const profitMargin = netRevenue > 0 ? ((netRevenue - totalExpenses) / netRevenue) * 100 : 0;
+    
+    const chartData = Array.from({ length: 6 }).map((_, i) => {
+      const date = subMonths(now, 5 - i);
+      const monthStart = startOfMonth(date);
+      const monthEnd = endOfMonth(date);
+      
+      const monthTransactions = transactions.filter(t => {
+        const transactionDate = toDate(t.date);
+        return transactionDate && isWithinInterval(transactionDate, { start: monthStart, end: monthEnd });
+      });
+
+      const income = monthTransactions.filter(t => t.category === 'Income').reduce((sum, t) => sum + t.amount, 0);
+      const expenses = monthTransactions.filter(t => t.category === 'Expense').reduce((sum, t) => sum + t.amount, 0);
+
+      return { month: format(date, 'MMM'), income, expenses };
+    });
+
+    const recentTransactions = transactions.slice(0, 5);
+
+    return { netRevenue, totalExpenses, profitMargin, cashReserve, chartData, recentTransactions };
+
+  }, [transactions]);
+  
+  const mainStats = [
+    {
+      title: 'Net Revenue',
+      value: `₱${netRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      change: 'in ' + format(new Date(), 'MMMM'),
+    },
+    {
+      title: 'Total Expenses',
+      value: `₱${totalExpenses.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      change: 'in ' + format(new Date(), 'MMMM'),
+    },
+    {
+      title: 'Profit Margin',
+      value: `${profitMargin.toFixed(1)}%`,
+      change: 'in ' + format(new Date(), 'MMMM'),
+    },
+    {
+      title: 'Cash Reserve',
+      value: `₱${cashReserve.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      change: 'Total available cash',
+    },
+  ];
+
+  if (isLoadingTransactions || isLoadingGoals) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="mr-2 h-8 w-8 animate-spin" />
+        <p>Loading Dashboard...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="grid gap-6">
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -79,9 +205,8 @@ export default function DashboardPage() {
                     tickLine={false}
                     tickMargin={10}
                     axisLine={false}
-                    tickFormatter={(value) => value.slice(0, 3)}
                   />
-                  <YAxis />
+                  <YAxis tickFormatter={(val) => `₱${(val / 1000).toFixed(0)}k`} />
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <ChartLegend content={<ChartLegendContent />} />
                   <Bar dataKey="income" fill="var(--color-income)" radius={4} />
@@ -97,6 +222,7 @@ export default function DashboardPage() {
             <CardTitle>Recent Transactions</CardTitle>
           </CardHeader>
           <CardContent>
+            {recentTransactions && recentTransactions.length > 0 ? (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -105,21 +231,28 @@ export default function DashboardPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {recentTransactions.map((transaction) => (
+                {recentTransactions.map((transaction) => {
+                  const transactionDate = toDate(transaction.date);
+                  return (
                   <TableRow key={transaction.id}>
                     <TableCell>
                       <div className="font-medium">{transaction.description}</div>
                       <div className="text-sm text-muted-foreground">
-                        {format(transaction.date, "MMM d, yyyy")}
+                        {transactionDate ? format(transactionDate, "MMM d, yyyy") : 'Invalid Date'}
                       </div>
                     </TableCell>
                     <TableCell className={cn("text-right", transaction.category === "Income" ? "text-green-600" : "text-red-600")}>
-                      {transaction.category === "Income" ? "+" : "-"}₱{transaction.amount.toFixed(2)}
+                      {transaction.category === "Income" ? "+" : "-"}₱{transaction.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </TableCell>
                   </TableRow>
-                ))}
+                )})}
               </TableBody>
             </Table>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>No transactions recorded yet.</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -129,17 +262,23 @@ export default function DashboardPage() {
           <CardTitle>Financial Goals Progress</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {financialGoals.slice(0, 2).map((goal) => (
-            <div key={goal.id}>
-              <div className="flex justify-between mb-1">
-                <span className="text-sm font-medium">{goal.name}</span>
-                <span className="text-sm text-muted-foreground">
-                  ₱{goal.currentAmount.toLocaleString()} / ₱{goal.targetAmount.toLocaleString()}
-                </span>
+          {financialGoals && financialGoals.length > 0 ? (
+            financialGoals.slice(0, 3).map((goal) => (
+              <div key={goal.id}>
+                <div className="flex justify-between mb-1">
+                  <span className="text-sm font-medium">{goal.name}</span>
+                  <span className="text-sm text-muted-foreground">
+                    ₱{goal.currentAmount.toLocaleString()} / ₱{goal.targetAmount.toLocaleString()}
+                  </span>
+                </div>
+                <Progress value={(goal.currentAmount / goal.targetAmount) * 100} />
               </div>
-              <Progress value={(goal.currentAmount / goal.targetAmount) * 100} />
+            ))
+           ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>No financial goals set yet.</p>
             </div>
-          ))}
+           )}
         </CardContent>
       </Card>
     </div>
