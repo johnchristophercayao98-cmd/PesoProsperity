@@ -2,7 +2,7 @@
 "use client"
 
 import { useMemo, useState } from "react";
-import { addMonths, format, startOfMonth, endOfMonth, isWithinInterval, subMonths } from "date-fns";
+import { addMonths, format, startOfMonth, endOfMonth } from "date-fns";
 import { Calendar as CalendarIcon, DollarSign, Info, Loader2, TrendingDown, TrendingUp } from "lucide-react";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
@@ -51,7 +51,6 @@ export function CashflowForecast() {
   const { data: recurringTransactions, isLoading: isLoadingRecurring } = useCollection<RecurringTransaction>(recurringQuery);
 
   const { forecastData, initialBalance, netCashFlow, lowestPoint, lowestPointMonth } = useMemo(() => {
-    const now = new Date();
     if (!transactions || !recurringTransactions) {
       return {
         forecastData: [],
@@ -62,7 +61,6 @@ export function CashflowForecast() {
       };
     }
 
-    // 1. Calculate Initial Balance from all non-recurring transactions
     const totalIncome = transactions
         .filter(t => t.category === 'Income')
         .reduce((sum, t) => sum + t.amount, 0);
@@ -71,7 +69,6 @@ export function CashflowForecast() {
         .reduce((sum, t) => sum + t.amount, 0);
     const initialBalance = totalIncome - totalExpenses;
 
-    // 2. Generate Forecast Data for the next 6 months based on recurring transactions
     const forecast = [];
     let lastBalance = initialBalance;
 
@@ -80,12 +77,10 @@ export function CashflowForecast() {
         const monthStart = startOfMonth(date);
         const monthEnd = endOfMonth(date);
 
-        // Filter recurring transactions that are active in this month
         const monthlyRecurring = recurringTransactions.filter(t => {
             const startDate = toDate(t.startDate);
             const endDate = toDate(t.endDate);
             if (!startDate) return false;
-            // Check if the recurring transaction period overlaps with the forecast month
             const startsBeforeOrInMonth = startDate <= monthEnd;
             const endsAfterOrInMonth = !endDate || endDate >= monthStart;
             return startsBeforeOrInMonth && endsAfterOrInMonth;
@@ -121,7 +116,6 @@ export function CashflowForecast() {
         lowestPointMonth = lowestPointMonthObj.month;
       }
     }
-
 
     return { forecastData: forecast, initialBalance, netCashFlow, lowestPoint, lowestPointMonth };
 
