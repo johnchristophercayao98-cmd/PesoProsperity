@@ -76,7 +76,7 @@ import {
   suggestMonthlyBudget,
   SuggestMonthlyBudgetOutput,
 } from '@/ai/flows/automated-budget-suggestions';
-import type { Budget } from '@/lib/types';
+import type { Budget, Transaction } from '@/lib/types';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -151,20 +151,53 @@ export function BudgetTabs() {
   const firestore = useFirestore();
   const { user } = useUser();
 
+  const monthStart = startOfMonth(selectedDate);
+  const monthEnd = endOfMonth(selectedDate);
+
   const budgetsQuery = useMemoFirebase(() => {
     if (!user) return null;
-    const monthStart = startOfMonth(selectedDate);
-    const monthEnd = endOfMonth(selectedDate);
     return query(
       collection(firestore, 'users', user.uid, 'budgets'),
       where('startDate', '>=', monthStart),
       where('startDate', '<=', monthEnd)
     );
-  }, [firestore, user, selectedDate]);
+  }, [firestore, user, monthStart, monthEnd]);
 
   const { data: budgets, isLoading: isBudgetsLoading } =
     useCollection<Budget>(budgetsQuery);
-  const budget = useMemo(() => budgets?.[0] ?? null, [budgets]);
+
+  const transactionsQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(
+      collection(firestore, 'users', user.uid, 'expenses'),
+      where('date', '>=', monthStart),
+      where('date', '<=', monthEnd)
+    );
+  }, [firestore, user, monthStart, monthEnd]);
+  
+  const { data: transactions, isLoading: isTransactionsLoading } = useCollection<Transaction>(transactionsQuery);
+
+  const budget = useMemo(() => {
+    const baseBudget = budgets?.[0] ?? null;
+    if (!baseBudget || !transactions) return baseBudget;
+
+    const calculateActuals = (categories: any[], type: 'Income' | 'Expense') => {
+      return categories.map(category => {
+        const actual = transactions
+          .filter(t => t.category === type && t.subcategory === category.name)
+          .reduce((sum, t) => sum + t.amount, 0);
+        return { ...category, actual };
+      });
+    };
+
+    return {
+      ...baseBudget,
+      income: calculateActuals(baseBudget.income || [], 'Income'),
+      expenses: calculateActuals(baseBudget.expenses || [], 'Expense'),
+    };
+
+  }, [budgets, transactions]);
+
 
   const budgetItemForm = useForm<BudgetItemFormData>({
     resolver: zodResolver(budgetItemSchema),
@@ -198,8 +231,8 @@ export function BudgetTabs() {
       // Update existing budget document
       const budgetRef = doc(firestore, 'users', user.uid, 'budgets', budget.id);
       updateDocumentNonBlocking(budgetRef, {
-        income: updatedIncome,
-        expenses: updatedExpenses,
+        income: updatedIncome.map(({actual, ...rest}) => rest), // Don't save actual
+        expenses: updatedExpenses.map(({actual, ...rest}) => rest),
       });
     } else {
       // Create new budget document
@@ -209,8 +242,8 @@ export function BudgetTabs() {
         name: `${format(selectedDate, 'MMMM yyyy')} Budget`,
         startDate: startOfMonth(selectedDate),
         endDate: endOfMonth(selectedDate),
-        income: updatedIncome,
-        expenses: updatedExpenses,
+        income: data.type === 'income' ? [newCategory] : [],
+        expenses: data.type === 'expense' ? [newCategory] : [],
       });
     }
 
@@ -237,8 +270,8 @@ export function BudgetTabs() {
 
     const budgetRef = doc(firestore, 'users', user.uid, 'budgets', budget.id);
     updateDocumentNonBlocking(budgetRef, {
-      income: updatedIncome,
-      expenses: updatedExpenses,
+      income: updatedIncome.map(({actual, ...rest}) => rest),
+      expenses: updatedExpenses.map(({actual, ...rest}) => rest),
     });
 
     toast({
@@ -458,7 +491,7 @@ export function BudgetTabs() {
               </div>
             </CardHeader>
             <CardContent>
-              {isBudgetsLoading ? (
+              {isBudgetsLoading || isTransactionsLoading ? (
                 <div className="flex items-center justify-center p-8">
                   <Loader2 className="mr-2 h-8 w-8 animate-spin" />
                   <p>Loading budget...</p>
@@ -680,5 +713,3 @@ export function BudgetTabs() {
     </>
   );
 }
-
-    
