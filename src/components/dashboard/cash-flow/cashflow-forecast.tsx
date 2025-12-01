@@ -1,29 +1,19 @@
 
 "use client"
 
-import { useState, useEffect, useMemo } from "react";
-import { format, addMonths, subMonths, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { DollarSign, TrendingDown, TrendingUp, Info, Calendar as CalendarIcon, Loader2 } from "lucide-react"
-import { Line, LineChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts"
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent,
-} from "@/components/ui/chart"
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { Button } from "@/components/ui/button";
+import { useMemo, useState } from "react";
+import { addMonths, format, startOfMonth, subMonths } from "date-fns";
+import { Calendar as CalendarIcon, DollarSign, Info, Loader2, TrendingDown, TrendingUp } from "lucide-react";
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+
 import type { Transaction } from "@/lib/types";
-import {
-  useFirestore,
-  useUser,
-  useCollection,
-  useMemoFirebase,
-} from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltipContent } from "@/components/ui/chart";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { collection, query, Timestamp } from 'firebase/firestore';
 
 
@@ -55,6 +45,7 @@ export function CashflowForecast() {
   const { data: transactions, isLoading: isLoadingTransactions } = useCollection<Transaction>(transactionsQuery);
 
   const { forecastData, initialBalance, netCashFlow, lowestPoint, lowestPointMonth } = useMemo(() => {
+    const now = new Date();
     if (!transactions) {
       return {
         forecastData: [],
@@ -65,7 +56,7 @@ export function CashflowForecast() {
       };
     }
 
-    // 1. Calculate Initial Balance
+    // 1. Calculate Initial Balance from all transactions
     const totalIncome = transactions
         .filter(t => t.category === 'Income')
         .reduce((sum, t) => sum + t.amount, 0);
@@ -74,8 +65,7 @@ export function CashflowForecast() {
         .reduce((sum, t) => sum + t.amount, 0);
     const initialBalance = totalIncome - totalExpenses;
 
-    // 2. Calculate historical monthly averages
-    const now = new Date();
+    // 2. Calculate historical monthly averages from the last 12 months
     const twelveMonthsAgo = startOfMonth(subMonths(now, 11));
     const historicalTransactions = transactions.filter(t => {
       const transDate = toDate(t.date);
@@ -90,7 +80,7 @@ export function CashflowForecast() {
     const avgMonthlyCashIn = monthlyIncome / monthCount;
     const avgMonthlyCashOut = monthlyExpenses / monthCount;
     
-    // 3. Generate Forecast Data
+    // 3. Generate Forecast Data for the next 6 months
     const forecast = [];
     let lastBalance = initialBalance;
     for (let i = 0; i < 6; i++) {
@@ -107,8 +97,9 @@ export function CashflowForecast() {
     }
 
     const netCashFlow = forecast.reduce((acc, d) => acc + d.cashIn - d.cashOut, 0);
-    const lowestPoint = Math.min(...forecast.map(d => d.balance));
-    const lowestPointMonth = forecast.find(d => d.balance === lowestPoint)?.month || '';
+    const lowestPoint = Math.min(initialBalance, ...forecast.map(d => d.balance));
+    const lowestPointMonthObj = forecast.find(d => d.balance === lowestPoint);
+    const lowestPointMonth = lowestPointMonthObj ? lowestPointMonthObj.month : format(selectedDate, "MMM yyyy");
 
     return { forecastData: forecast, initialBalance, netCashFlow, lowestPoint, lowestPointMonth };
 
