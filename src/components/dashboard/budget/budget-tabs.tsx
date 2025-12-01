@@ -76,7 +76,8 @@ import {
   suggestMonthlyBudget,
   SuggestMonthlyBudgetOutput,
 } from '@/ai/flows/automated-budget-suggestions';
-import type { Budget, Transaction } from '@/lib/types';
+import type { Budget } from '@/lib/types';
+import type { Transaction } from '@/lib/types';
 import { format, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -134,17 +135,17 @@ const budgetItemSchema = z.object({
 type BudgetItemFormData = z.infer<typeof budgetItemSchema>;
 
 const toDate = (date: any): Date | undefined => {
-    if (!date) return undefined;
-    if (date instanceof Date) return date;
-    if (date instanceof Timestamp) return date.toDate();
-    if (typeof date === 'string' || typeof date === 'number') {
-        const parsedDate = new Date(date);
-        if (!isNaN(parsedDate.getTime())) {
-            return parsedDate;
-        }
+  if (!date) return undefined;
+  if (date instanceof Date) return date;
+  if (date instanceof Timestamp) return date.toDate();
+  if (typeof date === 'string' || typeof date === 'number') {
+    const parsedDate = new Date(date);
+    if (!isNaN(parsedDate.getTime())) {
+      return parsedDate;
     }
-    return undefined;
   }
+  return undefined;
+};
 
 export function BudgetTabs() {
   const { toast } = useToast();
@@ -164,17 +165,16 @@ export function BudgetTabs() {
   const firestore = useFirestore();
   const { user } = useUser();
 
-  const monthStart = startOfMonth(selectedDate);
-  const monthEnd = endOfMonth(selectedDate);
-
   const budgetsQuery = useMemoFirebase(() => {
     if (!user) return null;
+    const monthStart = startOfMonth(selectedDate);
+    const monthEnd = endOfMonth(selectedDate);
     return query(
       collection(firestore, 'users', user.uid, 'budgets'),
       where('startDate', '>=', monthStart),
       where('startDate', '<=', monthEnd)
     );
-  }, [firestore, user, monthStart, monthEnd]);
+  }, [firestore, user, selectedDate]);
 
   const { data: budgets, isLoading: isBudgetsLoading } =
     useCollection<Budget>(budgetsQuery);
@@ -191,15 +191,26 @@ export function BudgetTabs() {
     const baseBudget = budgets?.[0] ?? null;
     if (!baseBudget) return null;
 
-    const monthlyTransactions = (allTransactions || []).filter(t => {
-        const transactionDate = toDate(t.date);
-        return transactionDate && isWithinInterval(transactionDate, { start: monthStart, end: monthEnd });
+    const monthStart = startOfMonth(selectedDate);
+    const monthEnd = endOfMonth(selectedDate);
+
+    const monthlyTransactions = (allTransactions || []).filter((t) => {
+      const transactionDate = toDate(t.date);
+      return (
+        transactionDate &&
+        isWithinInterval(transactionDate, { start: monthStart, end: monthEnd })
+      );
     });
 
-    const calculateActuals = (categories: any[], type: 'Income' | 'Expense') => {
-      return categories.map(category => {
+    const calculateActuals = (
+      categories: any[],
+      type: 'Income' | 'Expense'
+    ) => {
+      return categories.map((category) => {
         const actual = monthlyTransactions
-          .filter(t => t.category === type && t.subcategory === category.name)
+          .filter(
+            (t) => t.category === type && t.subcategory === category.name
+          )
           .reduce((sum, t) => sum + t.amount, 0);
         return { ...category, actual };
       });
@@ -210,7 +221,7 @@ export function BudgetTabs() {
       income: calculateActuals(baseBudget.income || [], 'Income'),
       expenses: calculateActuals(baseBudget.expenses || [], 'Expense'),
     };
-  }, [budgets, allTransactions, monthStart, monthEnd]);
+  }, [budgets, allTransactions, selectedDate]);
 
   const budgetItemForm = useForm<BudgetItemFormData>({
     resolver: zodResolver(budgetItemSchema),
@@ -410,7 +421,7 @@ export function BudgetTabs() {
   );
 
   const renderPieChart = (title: string, data: any[]) => {
-    const chartData = data.filter(item => item.actual > 0).map((item) => ({
+    const chartData = data.filter((item) => item.actual > 0).map((item) => ({
       name: item.name,
       value: item.actual,
     }));
@@ -568,7 +579,11 @@ export function BudgetTabs() {
                   onChange={handleFileChange}
                   disabled={isLoading}
                 />
-                <Button asChild variant="outline" className="w-full cursor-pointer">
+                <Button
+                  asChild
+                  variant="outline"
+                  className="w-full cursor-pointer"
+                >
                   <label htmlFor="financial-data-file">
                     <Upload className="mr-2 h-4 w-4" />
                     Choose a file
