@@ -64,7 +64,7 @@ const navItems = [
     label: 'Cash Flow',
     icon: Waves,
     subItems: [
-      { href: '/dashboard/cash-flow/forecasts', label: 'Forecasts', icon: TrendingUp },
+      { href: '/dashboard/cash-flow/statement', label: 'Statement', icon: TrendingUp },
       { href: '/dashboard/cash-flow/debt-tracker', label: 'Debt Tracker', icon: Landmark },
     ],
   },

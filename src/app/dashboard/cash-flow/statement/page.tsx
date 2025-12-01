@@ -1,7 +1,7 @@
 import { PageHeader } from "@/components/dashboard/page-header";
 import { CashflowStatement } from "@/components/dashboard/cash-flow/cashflow-statement";
 
-export default function ForecastsPage() {
+export default function StatementPage() {
     return (
         <div>
             <PageHeader
