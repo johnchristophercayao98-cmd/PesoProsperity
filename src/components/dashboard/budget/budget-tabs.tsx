@@ -86,12 +86,10 @@ import {
   useUser,
   useCollection,
   useMemoFirebase,
-} from '@/firebase';
-import {
   addDocumentNonBlocking,
   updateDocumentNonBlocking,
   deleteDocumentNonBlocking,
-} from '@/firebase/non-blocking-updates';
+} from '@/firebase';
 import { collection, query, where, doc, Timestamp } from 'firebase/firestore';
 
 const COLORS = [
@@ -412,10 +410,12 @@ export function BudgetTabs() {
   );
 
   const renderPieChart = (title: string, data: any[]) => {
-    const chartData = data.map((item) => ({
+    const chartData = data.filter(item => item.actual > 0).map((item) => ({
       name: item.name,
       value: item.actual,
     }));
+    if (chartData.length === 0) return null;
+
     const chartConfig = data.reduce((acc, item, index) => {
       acc[item.name] = {
         label: item.name,
