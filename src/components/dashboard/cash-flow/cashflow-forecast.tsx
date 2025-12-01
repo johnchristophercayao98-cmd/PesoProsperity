@@ -1,11 +1,11 @@
 
 "use client"
 
-import { useState, useEffect } from "react";
-import { format, getMonth, getYear, addMonths } from "date-fns";
+import { useState, useEffect, useMemo } from "react";
+import { format, addMonths, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { DollarSign, TrendingDown, TrendingUp, Info, Calendar as CalendarIcon } from "lucide-react"
+import { DollarSign, TrendingDown, TrendingUp, Info, Calendar as CalendarIcon, Loader2 } from "lucide-react"
 import { Line, LineChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts"
 import {
   ChartContainer,
@@ -17,25 +17,15 @@ import {
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
+import type { Budget, Transaction, RecurringTransaction, Debt } from "@/lib/types";
+import {
+  useFirestore,
+  useUser,
+  useCollection,
+  useMemoFirebase,
+} from '@/firebase';
+import { collection, query, where, Timestamp } from 'firebase/firestore';
 
-const generateForecastData = (startDate: Date) => {
-    const data = [];
-    let lastBalance = 2000;
-    for (let i = 0; i < 6; i++) {
-        const date = addMonths(startDate, i);
-        const cashIn = Math.round(4000 * (1 + Math.sin(getMonth(date) + i) * 0.2));
-        const cashOut = Math.round(2400 * (1 + Math.cos(getMonth(date) + i) * 0.15));
-        const balance = lastBalance + cashIn - cashOut;
-        data.push({
-            month: format(date, "MMM yyyy"),
-            cashIn,
-            cashOut,
-            balance
-        });
-        lastBalance = balance;
-    }
-    return data;
-}
 
 const chartConfig = {
     balance: { label: "Cash Balance", color: "hsl(var(--chart-1))" },
@@ -43,18 +33,118 @@ const chartConfig = {
     cashOut: { label: "Cash Out", color: "hsl(var(--destructive))" },
 }
 
+const toDate = (date: any): Date | undefined => {
+  if (!date) return undefined;
+  if (date instanceof Date) return date;
+  if (date instanceof Timestamp) return date.toDate();
+  if (typeof date === 'string' || typeof date === 'number') return new Date(date);
+  return undefined;
+}
+
 export function CashflowForecast() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [forecastData, setForecastData] = useState(() => generateForecastData(new Date()));
+  const [forecastData, setForecastData] = useState<any[]>([]);
+  const [initialBalance, setInitialBalance] = useState(0);
+
+  const firestore = useFirestore();
+  const { user } = useUser();
+
+  const budgetsQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(collection(firestore, 'users', user.uid, 'budgets'));
+  }, [firestore, user]);
+
+  const transactionsQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(collection(firestore, 'users', user.uid, 'expenses'));
+  }, [firestore, user]);
+
+  const recurringQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(collection(firestore, 'users', user.uid, 'recurringTransactions'));
+  }, [firestore, user]);
+
+  const { data: budgets, isLoading: isLoadingBudgets } = useCollection<Budget>(budgetsQuery);
+  const { data: transactions, isLoading: isLoadingTransactions } = useCollection<Transaction>(transactionsQuery);
+  const { data: recurring, isLoading: isLoadingRecurring } = useCollection<RecurringTransaction>(recurringQuery);
+  
+  const isLoading = isLoadingBudgets || isLoadingTransactions || isLoadingRecurring;
 
   useEffect(() => {
+    if (isLoading || !transactions) return;
+
+    const currentMonthStart = startOfMonth(new Date());
+    const currentMonthEnd = endOfMonth(new Date());
+
+    const incomeThisMonth = transactions
+        .filter(t => t.category === 'Income' && isWithinInterval(toDate(t.date)!, { start: currentMonthStart, end: currentMonthEnd }))
+        .reduce((sum, t) => sum + t.amount, 0);
+
+    const expensesThisMonth = transactions
+        .filter(t => t.category === 'Expense' && isWithinInterval(toDate(t.date)!, { start: currentMonthStart, end: currentMonthEnd }))
+        .reduce((sum, t) => sum + t.amount, 0);
+
+    setInitialBalance(incomeThisMonth - expensesThisMonth);
+  }, [transactions, isLoading])
+
+  useEffect(() => {
+    if (isLoading || !budgets || !recurring) return;
+
+    const generateForecastData = (startDate: Date) => {
+        const data = [];
+        let lastBalance = initialBalance;
+
+        for (let i = 0; i < 6; i++) {
+            const date = addMonths(startDate, i);
+            const monthStart = startOfMonth(date);
+            const monthEnd = endOfMonth(date);
+
+            const relevantBudget = budgets.find(b => {
+              const budgetStart = toDate(b.startDate)!;
+              return budgetStart.getMonth() === date.getMonth() && budgetStart.getFullYear() === date.getFullYear();
+            });
+            
+            const budgetedIncome = relevantBudget?.income.reduce((sum, item) => sum + item.budgeted, 0) || 0;
+            const budgetedExpenses = relevantBudget?.expenses.reduce((sum, item) => sum + item.budgeted, 0) || 0;
+
+            const recurringIncome = recurring
+              .filter(r => r.category === 'Income' && toDate(r.startDate)! <= monthEnd && (!r.endDate || toDate(r.endDate)! >= monthStart))
+              .reduce((sum, r) => sum + r.amount, 0);
+            
+            const recurringExpenses = recurring
+              .filter(r => r.category === 'Expense' && toDate(r.startDate)! <= monthEnd && (!r.endDate || toDate(r.endDate)! >= monthStart))
+              .reduce((sum, r) => sum + r.amount, 0);
+
+            const cashIn = budgetedIncome + recurringIncome;
+            const cashOut = budgetedExpenses + recurringExpenses;
+            const balance = lastBalance + cashIn - cashOut;
+
+            data.push({
+                month: format(date, "MMM yyyy"),
+                cashIn,
+                cashOut,
+                balance
+            });
+            lastBalance = balance;
+        }
+        return data;
+    }
+    
     setForecastData(generateForecastData(selectedDate));
-  }, [selectedDate]);
+  }, [selectedDate, budgets, recurring, isLoading, initialBalance]);
 
-  const lowestPoint = Math.min(...forecastData.map(d => d.balance));
-  const lowestPointMonth = forecastData.find(d => d.balance === lowestPoint)?.month || '';
+  const lowestPoint = useMemo(() => Math.min(...forecastData.map(d => d.balance)), [forecastData]);
+  const lowestPointMonth = useMemo(() => forecastData.find(d => d.balance === lowestPoint)?.month || '', [forecastData, lowestPoint]);
+  const netCashFlow = useMemo(() => forecastData.reduce((acc, d) => acc + d.cashIn - d.cashOut, 0), [forecastData]);
 
-  const netCashFlow = forecastData.reduce((acc, d) => acc + d.cashIn - d.cashOut, 0);
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+          <Loader2 className="mr-2 h-8 w-8 animate-spin" />
+          <p>Loading forecast data...</p>
+      </div>
+    )
+  }
 
   return (
     <div className="grid gap-6">
@@ -140,7 +230,7 @@ export function CashflowForecast() {
                     <DollarSign className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">₱120,780</div>
+                    <div className="text-2xl font-bold">₱{initialBalance.toLocaleString()}</div>
                     <p className="text-xs text-muted-foreground">Current available cash</p>
                 </CardContent>
              </Card>

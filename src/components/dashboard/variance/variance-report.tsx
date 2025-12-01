@@ -1,15 +1,14 @@
 
 "use client"
 
-import { useState, useEffect } from "react";
-import { format, getMonth, getYear } from "date-fns";
-import { sampleBudget as initialSampleBudget } from "@/lib/data"
-import type { Budget } from "@/lib/types";
+import { useState, useEffect, useMemo } from "react";
+import { format, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
+import type { Budget, Transaction } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AlertCircle, TrendingDown, TrendingUp, Calendar as CalendarIcon } from "lucide-react"
+import { AlertCircle, TrendingDown, TrendingUp, Calendar as CalendarIcon, Loader2 } from "lucide-react"
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Cell } from "recharts"
 import {
   ChartContainer,
@@ -19,33 +18,86 @@ import {
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import {
+  useFirestore,
+  useUser,
+  useCollection,
+  useMemoFirebase,
+} from '@/firebase';
+import { collection, query, where, Timestamp } from 'firebase/firestore';
+
+const toDate = (date: any): Date | undefined => {
+  if (!date) return undefined;
+  if (date instanceof Date) return date;
+  if (date instanceof Timestamp) return date.toDate();
+  if (typeof date === 'string' || typeof date === 'number') {
+    const parsedDate = new Date(date);
+    if (!isNaN(parsedDate.getTime())) {
+      return parsedDate;
+    }
+  }
+  return undefined;
+};
 
 export function VarianceReport() {
-    const [sampleBudget, setSampleBudget] = useState<Budget>(initialSampleBudget);
-    const [selectedDate, setSelectedDate] = useState<Date>(new Date(2024, 6, 1));
+    const [selectedDate, setSelectedDate] = useState<Date>(new Date());
     
-    useEffect(() => {
-        // Simulate fetching new data based on the selected date
-        const month = getMonth(selectedDate);
-        const year = getYear(selectedDate);
-        
-        const newBudgetData: Budget = {
-            month: format(selectedDate, "MMMM yyyy"),
-            income: initialSampleBudget.income.map(item => ({
-                ...item,
-                budgeted: Math.round(item.budgeted * (1 + Math.sin(month) * 0.1)),
-                actual: Math.round(item.actual * (1 + Math.cos(month) * 0.15)),
-            })),
-            expenses: initialSampleBudget.expenses.map(item => ({
-                ...item,
-                budgeted: Math.round(item.budgeted * (1 + Math.sin(month + 1) * 0.05)),
-                actual: Math.round(item.actual * (1 + Math.cos(month + 1) * 0.1)),
-            })),
-        };
-        setSampleBudget(newBudgetData);
-    }, [selectedDate]);
+    const firestore = useFirestore();
+    const { user } = useUser();
 
-    const { income, expenses } = sampleBudget;
+    const budgetsQuery = useMemoFirebase(() => {
+        if (!user) return null;
+        const monthStart = startOfMonth(selectedDate);
+        const monthEnd = endOfMonth(selectedDate);
+        return query(
+          collection(firestore, 'users', user.uid, 'budgets'),
+          where('startDate', '>=', monthStart),
+          where('startDate', '<=', monthEnd)
+        );
+      }, [firestore, user, selectedDate]);
+
+    const { data: budgets, isLoading: isBudgetsLoading } = useCollection<Budget>(budgetsQuery);
+
+    const allTransactionsQuery = useMemoFirebase(() => {
+        if (!user) return null;
+        return collection(firestore, 'users', user.uid, 'expenses');
+    }, [firestore, user]);
+
+    const { data: allTransactions, isLoading: isTransactionsLoading } = useCollection<Transaction>(allTransactionsQuery);
+
+    const budget = useMemo(() => {
+        const baseBudget = budgets?.[0] ?? null;
+        if (!baseBudget) return null;
+    
+        const monthStart = startOfMonth(selectedDate);
+        const monthEnd = endOfMonth(selectedDate);
+    
+        const monthlyTransactions = (allTransactions || []).filter((t) => {
+          const transactionDate = toDate(t.date);
+          return (
+            transactionDate &&
+            isWithinInterval(transactionDate, { start: monthStart, end: monthEnd })
+          );
+        });
+    
+        const calculateActuals = (categories: any[], type: 'Income' | 'Expense') => {
+          return categories.map((category) => {
+            const actual = monthlyTransactions
+              .filter((t) => t.category === type && t.subcategory === category.name)
+              .reduce((sum, t) => sum + t.amount, 0);
+            return { ...category, actual };
+          });
+        };
+    
+        return {
+          ...baseBudget,
+          income: calculateActuals(baseBudget.income || [], 'Income'),
+          expenses: calculateActuals(baseBudget.expenses || [], 'Expense'),
+        };
+      }, [budgets, allTransactions, selectedDate]);
+
+    const isLoading = isBudgetsLoading || isTransactionsLoading;
+    const { income = [], expenses = [] } = budget || {};
     const overspentItems = expenses.filter(item => item.actual > item.budgeted);
 
     const varianceData = expenses.map(item => ({
@@ -59,11 +111,14 @@ export function VarianceReport() {
       },
     }
 
-    const CustomBar = (props: any) => {
-      const { fill, x, y, width, height, payload } = props;
-      const isNegative = payload.variance < 0;
-      return <rect x={x} y={isNegative ? y - Math.abs(height) : y} width={width} height={Math.abs(height)} fill={isNegative ? "hsl(var(--destructive))" : "hsl(var(--chart-2))"} />;
-    };
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center p-8">
+                <Loader2 className="mr-2 h-8 w-8 animate-spin" />
+                <p>Loading variance report...</p>
+            </div>
+        )
+    }
     
     return (
         <div className="grid gap-6">
@@ -100,6 +155,15 @@ export function VarianceReport() {
                 </Alert>
             )}
 
+            {!budget ? (
+                <Card>
+                    <CardContent className="p-8 text-center">
+                        <p>No budget found for {format(selectedDate, "MMMM yyyy")}.</p>
+                        <p className="text-sm text-muted-foreground">Please create a budget in the Budget Planner page.</p>
+                    </CardContent>
+                </Card>
+            ) : (
+            <>
             <div className="grid md:grid-cols-2 gap-6">
                  <Card>
                     <CardHeader>
@@ -215,6 +279,8 @@ export function VarianceReport() {
                     </Table>
                 </CardContent>
             </Card>
+            </>
+            )}
         </div>
     )
 }
