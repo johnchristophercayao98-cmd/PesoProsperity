@@ -6,7 +6,7 @@ import { format, addMonths, subMonths, startOfMonth, endOfMonth, isWithinInterva
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { DollarSign, TrendingDown, TrendingUp, Info, Calendar as CalendarIcon, Loader2 } from "lucide-react"
-import { LineChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts"
+import { Line, LineChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts"
 import {
   ChartContainer,
   ChartTooltip,
@@ -173,9 +173,10 @@ export function CashflowForecast() {
                     content={
                       <ChartTooltipContent
                         formatter={(value, name) => {
-                          if (name === "cashIn") return [`+₱${value.toLocaleString(undefined, { maximumFractionDigits: 0})}`, "Avg. Monthly Cash In"]
-                          if (name === "cashOut") return [`-₱${value.toLocaleString(undefined, { maximumFractionDigits: 0})}`, "Avg. Monthly Cash Out"]
-                          return [`₱${value.toLocaleString(undefined, { maximumFractionDigits: 0})}`, "Projected Balance"]
+                          const formattedValue = `₱${Math.abs(Number(value)).toLocaleString(undefined, { maximumFractionDigits: 0})}`;
+                          if (name === "cashIn") return [`+${formattedValue}`, "Avg. Monthly Cash In"]
+                          if (name === "cashOut") return [`-${formattedValue}`, "Avg. Monthly Cash Out"]
+                          return [formattedValue, "Projected Balance"]
                         }}
                       />
                     }
