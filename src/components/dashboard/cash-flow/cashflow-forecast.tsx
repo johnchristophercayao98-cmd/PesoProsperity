@@ -1,19 +1,16 @@
 
 "use client"
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { addMonths, format, startOfMonth, endOfMonth } from "date-fns";
-import { Calendar as CalendarIcon, DollarSign, Info, Loader2, TrendingDown, TrendingUp } from "lucide-react";
+import { DollarSign, Info, Loader2, TrendingDown, TrendingUp } from "lucide-react";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import type { Transaction, RecurringTransaction } from "@/lib/types";
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltipContent } from "@/components/ui/chart";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { collection, query, Timestamp } from 'firebase/firestore';
 
 
@@ -32,8 +29,6 @@ const toDate = (date: any): Date | undefined => {
 }
 
 export function CashflowForecast() {
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  
   const firestore = useFirestore();
   const { user } = useUser();
   
@@ -50,14 +45,16 @@ export function CashflowForecast() {
   const { data: transactions, isLoading: isLoadingTransactions } = useCollection<Transaction>(transactionsQuery);
   const { data: recurringTransactions, isLoading: isLoadingRecurring } = useCollection<RecurringTransaction>(recurringQuery);
 
-  const { forecastData, initialBalance, netCashFlow, lowestPoint, lowestPointMonth } = useMemo(() => {
+  const { forecastData, initialBalance, netCashFlow, lowestPoint, lowestPointMonth, selectedDate } = useMemo(() => {
+    const currentDate = new Date();
     if (!transactions || !recurringTransactions) {
       return {
         forecastData: [],
         initialBalance: 0,
         netCashFlow: 0,
         lowestPoint: 0,
-        lowestPointMonth: ''
+        lowestPointMonth: '',
+        selectedDate: currentDate
       };
     }
 
@@ -73,7 +70,7 @@ export function CashflowForecast() {
     let lastBalance = initialBalance;
 
     for (let i = 0; i < 6; i++) {
-        const date = addMonths(selectedDate, i);
+        const date = addMonths(currentDate, i);
         const monthStart = startOfMonth(date);
         const monthEnd = endOfMonth(date);
 
@@ -109,7 +106,7 @@ export function CashflowForecast() {
     const allBalances = [initialBalance, ...forecast.map(d => d.balance)];
     const lowestPoint = allBalances.length > 0 ? Math.min(...allBalances) : 0;
     
-    let lowestPointMonth = format(selectedDate, "MMM yyyy");
+    let lowestPointMonth = format(currentDate, "MMM yyyy");
     if(lowestPoint !== initialBalance){
       const lowestPointMonthObj = forecast.find(d => d.balance === lowestPoint);
       if (lowestPointMonthObj) {
@@ -117,9 +114,9 @@ export function CashflowForecast() {
       }
     }
 
-    return { forecastData: forecast, initialBalance, netCashFlow, lowestPoint, lowestPointMonth };
+    return { forecastData: forecast, initialBalance, netCashFlow, lowestPoint, lowestPointMonth, selectedDate: currentDate };
 
-  }, [transactions, recurringTransactions, selectedDate]);
+  }, [transactions, recurringTransactions]);
 
 
   if (isLoadingTransactions || isLoadingRecurring) {
@@ -134,34 +131,13 @@ export function CashflowForecast() {
   return (
     <div className="grid gap-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <Alert className="w-full sm:w-fit">
+            <Alert className="w-full">
                 <Info className="h-4 w-4" />
                 <AlertTitle>Cash Reserve Reminder</AlertTitle>
                 <AlertDescription>
                 Maintain a sufficient cash reserve to cover expenses during low-sales months. We recommend at least 3 months of operating expenses.
                 </AlertDescription>
             </Alert>
-            <Popover>
-                <PopoverTrigger asChild>
-                <Button variant="outline" className="w-full sm:w-auto">
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {format(selectedDate, "MMMM yyyy")}
-                </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                <Calendar
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={(date) => {
-                    if(date) setSelectedDate(date);
-                    }}
-                    initialFocus
-                    captionLayout="dropdown-buttons"
-                    fromYear={2020}
-                    toYear={2030}
-                />
-                </PopoverContent>
-            </Popover>
         </div>
       <div className="grid md:grid-cols-3 gap-6">
         <Card className="md:col-span-2">
