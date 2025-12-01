@@ -17,7 +17,7 @@ import {
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
-import type { Budget, Transaction, RecurringTransaction, Debt } from "@/lib/types";
+import type { Budget, Transaction } from "@/lib/types";
 import {
   useFirestore,
   useUser,
@@ -59,36 +59,27 @@ export function CashflowForecast() {
     return query(collection(firestore, 'users', user.uid, 'expenses'));
   }, [firestore, user]);
 
-  const recurringQuery = useMemoFirebase(() => {
-    if (!user) return null;
-    return query(collection(firestore, 'users', user.uid, 'recurringTransactions'));
-  }, [firestore, user]);
-
   const { data: budgets, isLoading: isLoadingBudgets } = useCollection<Budget>(budgetsQuery);
   const { data: transactions, isLoading: isLoadingTransactions } = useCollection<Transaction>(transactionsQuery);
-  const { data: recurring, isLoading: isLoadingRecurring } = useCollection<RecurringTransaction>(recurringQuery);
   
-  const isLoading = isLoadingBudgets || isLoadingTransactions || isLoadingRecurring;
+  const isLoading = isLoadingBudgets || isLoadingTransactions;
 
   useEffect(() => {
     if (isLoading || !transactions) return;
 
-    const currentMonthStart = startOfMonth(new Date());
-    const currentMonthEnd = endOfMonth(new Date());
-
-    const incomeThisMonth = transactions
-        .filter(t => t.category === 'Income' && isWithinInterval(toDate(t.date)!, { start: currentMonthStart, end: currentMonthEnd }))
+    const totalIncome = transactions
+        .filter(t => t.category === 'Income')
         .reduce((sum, t) => sum + t.amount, 0);
 
-    const expensesThisMonth = transactions
-        .filter(t => t.category === 'Expense' && isWithinInterval(toDate(t.date)!, { start: currentMonthStart, end: currentMonthEnd }))
+    const totalExpenses = transactions
+        .filter(t => t.category === 'Expense')
         .reduce((sum, t) => sum + t.amount, 0);
 
-    setInitialBalance(incomeThisMonth - expensesThisMonth);
+    setInitialBalance(totalIncome - totalExpenses);
   }, [transactions, isLoading])
 
   useEffect(() => {
-    if (isLoading || !budgets || !recurring) return;
+    if (isLoading || !budgets) return;
 
     const generateForecastData = (startDate: Date) => {
         const data = [];
@@ -96,27 +87,15 @@ export function CashflowForecast() {
 
         for (let i = 0; i < 6; i++) {
             const date = addMonths(startDate, i);
-            const monthStart = startOfMonth(date);
-            const monthEnd = endOfMonth(date);
 
             const relevantBudget = budgets.find(b => {
               const budgetStart = toDate(b.startDate)!;
               return budgetStart.getMonth() === date.getMonth() && budgetStart.getFullYear() === date.getFullYear();
             });
             
-            const budgetedIncome = relevantBudget?.income.reduce((sum, item) => sum + item.budgeted, 0) || 0;
-            const budgetedExpenses = relevantBudget?.expenses.reduce((sum, item) => sum + item.budgeted, 0) || 0;
-
-            const recurringIncome = recurring
-              .filter(r => r.category === 'Income' && toDate(r.startDate)! <= monthEnd && (!r.endDate || toDate(r.endDate)! >= monthStart))
-              .reduce((sum, r) => sum + r.amount, 0);
+            const cashIn = relevantBudget?.income.reduce((sum, item) => sum + item.budgeted, 0) || 0;
+            const cashOut = relevantBudget?.expenses.reduce((sum, item) => sum + item.budgeted, 0) || 0;
             
-            const recurringExpenses = recurring
-              .filter(r => r.category === 'Expense' && toDate(r.startDate)! <= monthEnd && (!r.endDate || toDate(r.endDate)! >= monthStart))
-              .reduce((sum, r) => sum + r.amount, 0);
-
-            const cashIn = budgetedIncome + recurringIncome;
-            const cashOut = budgetedExpenses + recurringExpenses;
             const balance = lastBalance + cashIn - cashOut;
 
             data.push({
@@ -131,7 +110,7 @@ export function CashflowForecast() {
     }
     
     setForecastData(generateForecastData(selectedDate));
-  }, [selectedDate, budgets, recurring, isLoading, initialBalance]);
+  }, [selectedDate, budgets, isLoading, initialBalance]);
 
   const lowestPoint = useMemo(() => Math.min(...forecastData.map(d => d.balance)), [forecastData]);
   const lowestPointMonth = useMemo(() => forecastData.find(d => d.balance === lowestPoint)?.month || '', [forecastData, lowestPoint]);
