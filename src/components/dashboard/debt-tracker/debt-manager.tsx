@@ -63,8 +63,6 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from '@/components/ui/chart';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
 import {
   useFirestore,
   useUser,
@@ -145,7 +143,10 @@ export function DebtManager() {
   useEffect(() => {
     if (editingDebt) {
         addForm.reset({
-            ...editingDebt,
+            creditor: editingDebt.creditor,
+            totalAmount: editingDebt.totalAmount,
+            amountPaid: editingDebt.amountPaid,
+            interestRate: editingDebt.interestRate,
             nextPaymentDue: toDate(editingDebt.nextPaymentDue)!
         });
         setIsAddDialogOpen(true);
@@ -480,5 +481,3 @@ export function DebtManager() {
     </>
   );
 }
-
-    
