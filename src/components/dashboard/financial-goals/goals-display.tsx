@@ -52,8 +52,9 @@ import {
   updateDocumentNonBlocking,
   deleteDocumentNonBlocking,
 } from '@/firebase';
-import { collection, doc } from 'firebase/firestore';
+import { collection, doc, Timestamp } from 'firebase/firestore';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+
 
 const goalSchema = z.object({
   name: z.string().min(3, 'Goal name must be at least 3 characters.'),
@@ -98,6 +99,14 @@ export function GoalsDisplay() {
   const addAmountForm = useForm<AddAmountFormData>({
     resolver: zodResolver(addAmountSchema),
   });
+  
+  const toDate = (date: any): Date | undefined => {
+    if (!date) return undefined;
+    if (date instanceof Date) return date;
+    if (date instanceof Timestamp) return date.toDate();
+    if (typeof date === 'string' || typeof date === 'number') return new Date(date);
+    return undefined;
+  }
 
   useEffect(() => {
     if (editingGoal) {
@@ -105,9 +114,7 @@ export function GoalsDisplay() {
         name: editingGoal.name,
         targetAmount: editingGoal.targetAmount,
         currentAmount: editingGoal.currentAmount,
-        deadline: editingGoal.deadline
-          ? new Date(editingGoal.deadline)
-          : undefined,
+        deadline: toDate(editingGoal.deadline)
       });
       setIsDialogOpen(true);
     } else {
@@ -368,6 +375,7 @@ export function GoalsDisplay() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {goals && goals.map((goal) => {
             const progress = (goal.currentAmount / goal.targetAmount) * 100;
+            const deadlineDate = toDate(goal.deadline);
             return (
                 <Card key={goal.id}>
                 <CardHeader className="flex flex-row items-center justify-between">
@@ -416,11 +424,11 @@ export function GoalsDisplay() {
                     </div>
                 </CardContent>
                 <CardFooter>
-                    {goal.deadline ? (
+                    {deadlineDate ? (
                     <p className="text-sm text-muted-foreground">
                         Deadline:{' '}
-                        {format(new Date(goal.deadline as any), 'MMM d, yyyy')} (
-                        {formatDistanceToNow(new Date(goal.deadline as any), { addSuffix: true })})
+                        {format(deadlineDate, 'MMM d, yyyy')} (
+                        {formatDistanceToNow(deadlineDate, { addSuffix: true })})
                     </p>
                     ) : (
                     <p className="text-sm text-muted-foreground">

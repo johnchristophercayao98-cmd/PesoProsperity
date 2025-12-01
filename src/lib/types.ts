@@ -1,8 +1,9 @@
+import { Timestamp } from 'firebase/firestore';
 
 export type Transaction = {
   id: string;
   userId: string;
-  date: Date;
+  date: Date | Timestamp;
   description: string;
   amount: number;
   category: 'Income' | 'Expense';
@@ -16,8 +17,8 @@ export type RecurringTransaction = {
   amount: number;
   category: 'Income' | 'Expense';
   frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
-  startDate: Date;
-  endDate?: Date;
+  startDate: Date | Timestamp;
+  endDate?: Date | Timestamp;
   paymentMethod: string;
 };
 
@@ -27,7 +28,7 @@ export type FinancialGoal = {
   name: string;
   targetAmount: number;
   currentAmount: number;
-  deadline?: Date;
+  deadline?: Date | Timestamp;
 };
 
 export type Debt = {
@@ -37,7 +38,7 @@ export type Debt = {
   totalAmount: number;
   amountPaid: number;
   interestRate: number;
-  nextPaymentDue: Date;
+  nextPaymentDue: Date | Timestamp;
 };
 
 export type BudgetCategory = {
@@ -50,10 +51,8 @@ export type Budget = {
   id: string;
   userId: string;
   name: string;
-  startDate: Date;
-  endDate: Date;
+  startDate: Date | Timestamp;
+  endDate: Date | Timestamp;
   income: BudgetCategory[];
   expenses: BudgetCategory[];
 };
-
-    

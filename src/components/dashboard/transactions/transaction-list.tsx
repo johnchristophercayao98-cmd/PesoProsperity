@@ -66,8 +66,8 @@ import {
   updateDocumentNonBlocking,
   deleteDocumentNonBlocking,
 } from '@/firebase';
-import { collection, doc } from 'firebase/firestore';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui';
+import { collection, doc, Timestamp } from 'firebase/firestore';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 const transactionSchema = z.object({
   description: z.string().min(2, 'Description is required.'),
@@ -123,6 +123,14 @@ export function TransactionList() {
   });
 
   const category = form.watch('category');
+  
+  const toDate = (date: any): Date | undefined => {
+    if (!date) return undefined;
+    if (date instanceof Date) return date;
+    if (date instanceof Timestamp) return date.toDate();
+    if (typeof date === 'string' || typeof date === 'number') return new Date(date);
+    return undefined;
+  }
 
   const handleDialogOpenChange = (open: boolean) => {
     setIsDialogOpen(open);
@@ -136,7 +144,7 @@ export function TransactionList() {
     setEditingTransaction(transaction);
     form.reset({
       ...transaction,
-      date: new Date(transaction.date),
+      date: toDate(transaction.date)!,
       // @ts-ignore
       paymentMethod: transaction.paymentMethod || ""
     });
@@ -215,9 +223,11 @@ export function TransactionList() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {transactions && transactions.map((t) => (
+              {transactions && transactions.map((t) => {
+                const transactionDate = toDate(t.date);
+                return (
                 <TableRow key={t.id}>
-                  <TableCell>{format(new Date(t.date as any), 'MMM d, yyyy')}</TableCell>
+                  <TableCell>{transactionDate ? format(transactionDate, 'MMM d, yyyy') : 'Invalid Date'}</TableCell>
                   <TableCell className="font-medium">{t.description}</TableCell>
                   <TableCell>
                     <Badge variant="outline">{t.subcategory}</Badge>
@@ -258,7 +268,7 @@ export function TransactionList() {
                     </DropdownMenu>
                   </TableCell>
                 </TableRow>
-              ))}
+              )})}
             </TableBody>
           </Table>
           )}

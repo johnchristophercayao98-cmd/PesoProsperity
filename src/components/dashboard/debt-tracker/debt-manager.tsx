@@ -74,7 +74,7 @@ import {
   updateDocumentNonBlocking,
   deleteDocumentNonBlocking,
 } from '@/firebase';
-import { collection, doc } from 'firebase/firestore';
+import { collection, doc, Timestamp } from 'firebase/firestore';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 
@@ -121,12 +121,20 @@ export function DebtManager() {
   const payForm = useForm<PaymentFormData>({
     resolver: zodResolver(paymentSchema),
   });
+  
+  const toDate = (date: any): Date | undefined => {
+    if (!date) return undefined;
+    if (date instanceof Date) return date;
+    if (date instanceof Timestamp) return date.toDate();
+    if (typeof date === 'string' || typeof date === 'number') return new Date(date);
+    return undefined;
+  }
 
   useEffect(() => {
     if (editingDebt) {
         addForm.reset({
             ...editingDebt,
-            nextPaymentDue: new Date(editingDebt.nextPaymentDue)
+            nextPaymentDue: toDate(editingDebt.nextPaymentDue)!
         });
         setIsAddDialogOpen(true);
     }
@@ -228,6 +236,7 @@ export function DebtManager() {
                     const remaining = debt.totalAmount - debt.amountPaid;
                     const progress =
                       (debt.amountPaid / debt.totalAmount) * 100;
+                    const nextPaymentDate = toDate(debt.nextPaymentDue);
                     return (
                       <TableRow key={debt.id}>
                         <TableCell className="font-medium">
@@ -240,8 +249,8 @@ export function DebtManager() {
                           <Progress value={progress} />
                         </TableCell>
                         <TableCell>
-                          {remaining > 0
-                            ? format(new Date(debt.nextPaymentDue as any), 'MMM d, yyyy')
+                          {remaining > 0 && nextPaymentDate
+                            ? format(nextPaymentDate, 'MMM d, yyyy')
                             : '-'}
                         </TableCell>
                         <TableCell>

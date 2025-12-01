@@ -73,7 +73,7 @@ import {
   updateDocumentNonBlocking,
   deleteDocumentNonBlocking,
 } from '@/firebase';
-import { collection, doc, query, where } from 'firebase/firestore';
+import { collection, doc, query, where, Timestamp } from 'firebase/firestore';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 
@@ -141,6 +141,14 @@ export function RecurringList() {
   });
 
   const type = form.watch('category');
+  
+  const toDate = (date: any): Date | undefined => {
+    if (!date) return undefined;
+    if (date instanceof Date) return date;
+    if (date instanceof Timestamp) return date.toDate();
+    if (typeof date === 'string' || typeof date === 'number') return new Date(date);
+    return undefined;
+  }
 
   const handleDialogOpenChange = (open: boolean) => {
     setIsDialogOpen(open);
@@ -154,8 +162,8 @@ export function RecurringList() {
     setEditingTransaction(transaction);
     form.reset({
       ...transaction,
-      startDate: new Date(transaction.startDate),
-      endDate: transaction.endDate ? new Date(transaction.endDate) : undefined,
+      startDate: toDate(transaction.startDate)!,
+      endDate: toDate(transaction.endDate),
     });
     setIsDialogOpen(true);
   };
@@ -444,7 +452,9 @@ export function RecurringList() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {transactions && transactions.map((t) => (
+              {transactions && transactions.map((t) => {
+                const startDate = toDate(t.startDate);
+                return (
                 <TableRow key={t.id}>
                   <TableCell className="font-medium">{t.description}</TableCell>
                   <TableCell
@@ -462,7 +472,7 @@ export function RecurringList() {
                       {t.frequency}
                     </Badge>
                   </TableCell>
-                  <TableCell>{format(new Date(t.startDate as any), 'MMM d, yyyy')}</TableCell>
+                  <TableCell>{startDate ? format(startDate, 'MMM d, yyyy') : 'Invalid Date'}</TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -481,7 +491,7 @@ export function RecurringList() {
                     </DropdownMenu>
                   </TableCell>
                 </TableRow>
-              ))}
+              )})}
             </TableBody>
           </Table>
           )}
