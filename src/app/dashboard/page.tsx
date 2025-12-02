@@ -157,29 +157,21 @@ export default function DashboardPage() {
     const currentMonthStart = startOfMonth(now);
     const currentMonthEnd = endOfMonth(now);
     
+    // Generate instances for the last 6 months for chart and recent transactions.
     const sixMonthsAgo = startOfMonth(subMonths(now, 5));
-    const recurringInstances = generateTransactionInstances(recurringTransactions, sixMonthsAgo, today);
-    const allTransactions = [...singleTransactions, ...recurringInstances].filter(t => {
-      const transactionDate = toDate(t.date);
-      return transactionDate && (isBefore(transactionDate, today) || isEqual(transactionDate, today));
+    const recurringForChart = generateTransactionInstances(recurringTransactions, sixMonthsAgo, today);
+
+    // Combine transactions for chart and recent lists
+    const transactionsForChart = [...singleTransactions, ...recurringForChart].filter(t => {
+        const transactionDate = toDate(t.date);
+        return transactionDate && isWithinInterval(transactionDate, { start: sixMonthsAgo, end: today });
     });
 
     let netRevenue = 0;
     let totalExpenses = 0;
     
-    // Recalculate cashReserve from the earliest transaction
-    let cashReserve = 0;
-    const sortedForReserve = [...allTransactions].sort((a,b) => toDate(a.date)!.getTime() - toDate(b.date)!.getTime());
-    sortedForReserve.forEach(t => {
-      if (t.category === 'Income') {
-        cashReserve += t.amount;
-      } else {
-        cashReserve -= t.amount;
-      }
-    });
-
-    // Calculate current month's stats
-    allTransactions.forEach(t => {
+    // Calculate current month's stats from chart data
+    transactionsForChart.forEach(t => {
       const transactionDate = toDate(t.date);
       if (!transactionDate) return;
 
@@ -192,7 +184,18 @@ export default function DashboardPage() {
       }
     });
 
+    // To calculate the true cash reserve, we need all transactions from the beginning of time.
+    const earliestTransactionDate = singleTransactions.length > 0
+        ? toDate(singleTransactions[singleTransactions.length - 1]?.date) ?? new Date(0)
+        : new Date(0);
+    const recurringAllTime = generateTransactionInstances(recurringTransactions, earliestTransactionDate, today);
+    const allTransactions = [...singleTransactions, ...recurringAllTime].filter(t => {
+        const transactionDate = toDate(t.date);
+        return transactionDate && (isBefore(transactionDate, today) || isEqual(transactionDate, today));
+    });
 
+    const cashReserve = allTransactions.reduce((acc, t) => acc + (t.category === 'Income' ? t.amount : -t.amount), 0);
+    
     const profitMargin = netRevenue > 0 ? ((netRevenue - totalExpenses) / netRevenue) * 100 : 0;
     
     const chartData = Array.from({ length: 6 }).map((_, i) => {
@@ -200,7 +203,7 @@ export default function DashboardPage() {
       const monthStart = startOfMonth(date);
       const monthEnd = endOfMonth(date);
       
-      const monthTransactions = allTransactions.filter(t => {
+      const monthTransactions = transactionsForChart.filter(t => {
         const transactionDate = toDate(t.date);
         return transactionDate && isWithinInterval(transactionDate, { start: monthStart, end: monthEnd });
       });
@@ -211,7 +214,7 @@ export default function DashboardPage() {
       return { month: format(date, 'MMM'), income, expenses };
     });
     
-    const sortedRecent = allTransactions.sort((a,b) => toDate(b.date)!.getTime() - toDate(a.date)!.getTime());
+    const sortedRecent = [...transactionsForChart].sort((a,b) => toDate(b.date)!.getTime() - toDate(a.date)!.getTime());
     const recentTransactions = sortedRecent.slice(0, 5);
 
     return { netRevenue, totalExpenses, profitMargin, cashReserve, chartData, recentTransactions };
@@ -360,5 +363,3 @@ export default function DashboardPage() {
     </div>
   )
 }
-
-    
