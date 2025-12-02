@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -354,20 +355,20 @@ export function DebtManager() {
 
       {/* Add/Edit Debt Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={(open) => { setIsAddDialogOpen(open); if (!open) setEditingDebt(null)}}>
-        <DialogContent className="sm:max-w-md grid-rows-[auto,1fr,auto] max-h-[90vh]">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{editingDebt ? 'Edit' : 'Add New'} Debt</DialogTitle>
             <DialogDescription>
               {editingDebt ? 'Update this liability.' : 'Record a new liability.'}
             </DialogDescription>
           </DialogHeader>
-          <div className="overflow-y-auto px-1">
-            <Form {...addForm}>
-              <form
-                id="debt-form"
-                onSubmit={addForm.handleSubmit(handleAddDebt)}
-                className="space-y-4"
-              >
+          <Form {...addForm}>
+            <form
+              id="debt-form"
+              onSubmit={addForm.handleSubmit(handleAddDebt)}
+              className="grid gap-4 py-4"
+            >
+              <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto px-1">
                 <FormField
                   control={addForm.control}
                   name="creditor"
@@ -420,17 +421,17 @@ export function DebtManager() {
                     </FormItem>
                   )}
                 />
-              </form>
-            </Form>
-          </div>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="secondary">
-                Cancel
-              </Button>
-            </DialogClose>
-            <Button type="submit" form="debt-form">{editingDebt ? 'Save Changes' : 'Add Debt'}</Button>
-          </DialogFooter>
+              </div>
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button type="button" variant="secondary">
+                    Cancel
+                  </Button>
+                </DialogClose>
+                <Button type="submit">{editingDebt ? 'Save Changes' : 'Add Debt'}</Button>
+              </DialogFooter>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
 
