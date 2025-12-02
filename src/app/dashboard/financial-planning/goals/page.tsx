@@ -5,7 +5,7 @@ import { PlusCircle } from "lucide-react";
 
 export default function FinancialGoalsPage() {
   return (
-    <div>
+    <div className='p-4 sm:p-0'>
       <PageHeader
         title="Financial Goals"
         description="Set, track, and achieve your financial objectives."

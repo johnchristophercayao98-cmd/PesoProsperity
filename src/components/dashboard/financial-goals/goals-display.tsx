@@ -393,9 +393,9 @@ export function GoalsDisplay() {
             const progress = (goal.currentAmount / goal.targetAmount) * 100;
             const deadlineDate = toDate(goal.deadline);
             return (
-                <Card key={goal.id}>
+                <Card key={goal.id} className='flex flex-col'>
                 <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle>{goal.name}</CardTitle>
+                    <CardTitle className='text-lg'>{goal.name}</CardTitle>
                     <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="h-8 w-8 p-0">
@@ -424,8 +424,8 @@ export function GoalsDisplay() {
                     </DropdownMenuContent>
                     </DropdownMenu>
                 </CardHeader>
-                <CardContent>
-                    <div className="mb-2">
+                <CardContent className='flex-grow'>
+                    <div className="mb-2 text-sm sm:text-base">
                     <span className="text-2xl font-bold">
                         ₱{goal.currentAmount.toLocaleString()}
                     </span>

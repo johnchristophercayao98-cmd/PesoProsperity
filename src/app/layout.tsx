@@ -6,6 +6,7 @@ import { FirebaseClientProvider } from '@/firebase/client-provider';
 export const metadata: Metadata = {
   title: 'PesoProsperity',
   description: 'Your partner in financial success for small enterprises in the Philippines.',
+  viewport: 'width=device-width, initial-scale=1',
 };
 
 export default function RootLayout({

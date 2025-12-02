@@ -30,6 +30,7 @@ import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebas
 import { collection, query, orderBy, Timestamp } from "firebase/firestore"
 import type { Transaction, FinancialGoal, RecurringTransaction } from "@/lib/types"
 import { Loader2 } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
 
 const chartConfig = {
   income: {
@@ -70,7 +71,6 @@ const generateTransactionInstances = (
     let currentDate = startDate;
     const endDate = toDate(rt.endDate);
     
-    // Determine the real end date for generation, which is the minimum of periodEnd and today.
     const generationEndDate = isBefore(periodEnd, today) ? periodEnd : today;
 
     while (isBefore(currentDate, generationEndDate) || isEqual(currentDate, generationEndDate)) {
@@ -155,7 +155,6 @@ export default function DashboardPage() {
     const now = new Date();
     const today = startOfDay(now);
     
-    // To calculate all-time stats, generate recurring instances from the beginning of time.
     const recurringAllTime = generateTransactionInstances(recurringTransactions, new Date(0), today);
     const allTransactions = [...singleTransactions, ...recurringAllTime].filter(t => {
         const transactionDate = toDate(t.date);
@@ -167,7 +166,6 @@ export default function DashboardPage() {
     const cashReserve = netRevenue - totalExpenses;
     const profitMargin = netRevenue > 0 ? ((netRevenue - totalExpenses) / netRevenue) * 100 : 0;
     
-    // Chart data is for the last 6 months
     const sixMonthsAgo = startOfMonth(subMonths(now, 5));
     const transactionsForChart = allTransactions.filter(t => {
       const transactionDate = toDate(t.date);
@@ -245,8 +243,8 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="lg:col-span-4">
+      <div className="grid gap-4 lg:grid-cols-7">
+        <Card className="lg:col-span-full xl:col-span-4">
           <CardHeader>
             <CardTitle>Overview</CardTitle>
           </CardHeader>
@@ -260,8 +258,10 @@ export default function DashboardPage() {
                     tickLine={false}
                     tickMargin={10}
                     axisLine={false}
+                    stroke="#888888"
+                    fontSize={12}
                   />
-                  <YAxis tickFormatter={(val) => `₱${(val / 1000).toFixed(0)}k`} />
+                  <YAxis tickFormatter={(val) => `₱${(val / 1000).toFixed(0)}k`}  stroke="#888888" fontSize={12}/>
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <ChartLegend content={<ChartLegendContent />} />
                   <Bar dataKey="income" fill="var(--color-income)" radius={4} />
@@ -272,37 +272,30 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-3">
+        <Card className="lg:col-span-full xl:col-span-3">
           <CardHeader>
             <CardTitle>Recent Transactions</CardTitle>
           </CardHeader>
           <CardContent>
             {recentTransactions && recentTransactions.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Description</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {recentTransactions.map((transaction, index) => {
-                  const transactionDate = toDate(transaction.date);
-                  return (
-                  <TableRow key={transaction.id + '-' + index}>
-                    <TableCell>
-                      <div className="font-medium">{transaction.description}</div>
+            <div className="space-y-4">
+              {recentTransactions.map((transaction, index) => {
+                const transactionDate = toDate(transaction.date);
+                return (
+                  <div key={transaction.id + '-' + index} className="flex items-center justify-between">
+                    <div className="flex-1 pr-4">
+                      <div className="font-medium truncate">{transaction.description}</div>
                       <div className="text-sm text-muted-foreground">
                         {transactionDate ? format(transactionDate, "MMM d, yyyy") : 'Invalid Date'}
                       </div>
-                    </TableCell>
-                    <TableCell className={cn("text-right", transaction.category === "Income" ? "text-green-600" : "text-red-600")}>
+                    </div>
+                    <div className={cn("font-bold", transaction.category === "Income" ? "text-green-600" : "text-red-600")}>
                       {transaction.category === "Income" ? "+" : "-"}₱{transaction.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </TableCell>
-                  </TableRow>
-                )})}
-              </TableBody>
-            </Table>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
             ) : (
               <div className="text-center py-8 text-muted-foreground">
                 <p>No transactions recorded yet.</p>

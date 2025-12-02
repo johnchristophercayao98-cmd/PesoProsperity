@@ -6,6 +6,7 @@ import { Header } from "@/components/layout/header";
 import { useUser } from "@/firebase/provider";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { Loader2 } from "lucide-react";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, isUserLoading } = useUser();
@@ -19,8 +20,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   if (isUserLoading || !user) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <p>Loading...</p>
+      <div className="flex h-screen items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="ml-4">Loading user data...</p>
       </div>
     );
   }

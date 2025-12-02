@@ -317,67 +317,120 @@ export function TransactionList() {
                 <p>Loading transactions...</p>
             </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                <TableHead>
-                  <span className="sr-only">Actions</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {allTransactions && allTransactions.map((t) => {
+          <>
+            <div className="hidden md:block">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead>
+                      <span className="sr-only">Actions</span>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {allTransactions && allTransactions.map((t) => {
+                    const transactionDate = toDate(t.date);
+                    return (
+                    <TableRow key={t.id}>
+                      <TableCell>{transactionDate ? format(transactionDate, 'MMM d, yyyy') : 'Invalid Date'}</TableCell>
+                      <TableCell className="font-medium">{t.description}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{t.subcategory}</Badge>
+                      </TableCell>
+                      <TableCell
+                        className={cn(
+                          'text-right',
+                          t.category === 'Income'
+                            ? 'text-green-600'
+                            : 'text-red-600'
+                        )}
+                      >
+                        {t.category === 'Income' ? '+' : '-'}₱
+                        {t.amount.toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <span className="sr-only">Open menu</span>
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleEdit(t)}>
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => setTransactionToDelete(t)}
+                              className="text-destructive"
+                            >
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  )})}
+                </TableBody>
+              </Table>
+            </div>
+            <div className="grid gap-4 md:hidden">
+              {allTransactions.map(t => {
                 const transactionDate = toDate(t.date);
                 return (
-                <TableRow key={t.id}>
-                  <TableCell>{transactionDate ? format(transactionDate, 'MMM d, yyyy') : 'Invalid Date'}</TableCell>
-                  <TableCell className="font-medium">{t.description}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{t.subcategory}</Badge>
-                  </TableCell>
-                  <TableCell
-                    className={cn(
-                      'text-right',
-                      t.category === 'Income'
-                        ? 'text-green-600'
-                        : 'text-red-600'
-                    )}
-                  >
-                    {t.category === 'Income' ? '+' : '-'}₱
-                    {t.amount.toLocaleString(undefined, {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <span className="sr-only">Open menu</span>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleEdit(t)}>
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => setTransactionToDelete(t)}
-                          className="text-destructive"
-                        >
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              )})}
-            </TableBody>
-          </Table>
+                  <Card key={t.id} className="grid gap-2 p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="font-medium">{t.description}</div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Open menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleEdit(t)}>
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => setTransactionToDelete(t)}
+                            className="text-destructive"
+                          >
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <Badge variant="outline">{t.subcategory}</Badge>
+                      <div className={cn(
+                        'font-bold',
+                        t.category === 'Income'
+                          ? 'text-green-600'
+                          : 'text-red-600'
+                      )}>
+                        {t.category === 'Income' ? '+' : '-'}₱
+                        {t.amount.toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </div>
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      {transactionDate ? format(transactionDate, 'MMM d, yyyy') : 'Invalid Date'}
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          </>
           )}
         </CardContent>
       </Card>

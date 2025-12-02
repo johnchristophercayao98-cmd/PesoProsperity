@@ -253,10 +253,10 @@ export function RecurringList() {
 
   return (
     <>
-      <div className="mb-6 flex items-center justify-end gap-2">
+      <div className="mb-6 flex flex-col sm:flex-row items-stretch sm:items-center sm:justify-end gap-2">
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="outline">
+            <Button variant="outline" className='w-full sm:w-auto'>
               <CalendarIcon className="mr-2 h-4 w-4" />
               {format(selectedDate, 'MMMM yyyy')}
             </Button>
@@ -277,7 +277,7 @@ export function RecurringList() {
         </Popover>
         <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
           <DialogTrigger asChild>
-            <Button>
+            <Button className='w-full sm:w-auto'>
               <PlusCircle className="mr-2 h-4 w-4" />
               Add Recurring
             </Button>
@@ -499,65 +499,108 @@ export function RecurringList() {
                 <p>Loading transactions...</p>
             </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Description</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Frequency</TableHead>
-                <TableHead>Next Due</TableHead>
-                <TableHead>
-                  <span className="sr-only">Actions</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {transactions && transactions.map((t) => {
-                const nextDueDate = getNextDueDate(t);
-                return (
-                <TableRow key={t.id}>
-                  <TableCell className="font-medium">{t.description}</TableCell>
-                   <TableCell>
-                    <Badge variant="outline">{t.subcategory}</Badge>
-                  </TableCell>
-                  <TableCell
-                    className={cn(
-                      t.category === 'Income'
-                        ? 'text-green-600'
-                        : 'text-red-600'
-                    )}
-                  >
-                    {t.category === 'Income' ? '+' : '-'}₱
-                    {t.amount.toLocaleString()}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="capitalize">
-                      {t.frequency}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{nextDueDate ? format(nextDueDate, 'MMM d, yyyy') : 'Ended'}</TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <span className="sr-only">Open menu</span>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleEdit(t)}>Edit</DropdownMenuItem>
-                        <DropdownMenuItem>Pause</DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive" onClick={() => setTransactionToDelete(t)}>
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              )})}
-            </TableBody>
-          </Table>
+          <>
+            <div className='hidden md:block'>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Frequency</TableHead>
+                    <TableHead>Next Due</TableHead>
+                    <TableHead>
+                      <span className="sr-only">Actions</span>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {transactions && transactions.map((t) => {
+                    const nextDueDate = getNextDueDate(t);
+                    return (
+                    <TableRow key={t.id}>
+                      <TableCell className="font-medium">{t.description}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{t.subcategory}</Badge>
+                      </TableCell>
+                      <TableCell
+                        className={cn(
+                          t.category === 'Income'
+                            ? 'text-green-600'
+                            : 'text-red-600'
+                        )}
+                      >
+                        {t.category === 'Income' ? '+' : '-'}₱
+                        {t.amount.toLocaleString()}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="capitalize">
+                          {t.frequency}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{nextDueDate ? format(nextDueDate, 'MMM d, yyyy') : 'Ended'}</TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <span className="sr-only">Open menu</span>
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleEdit(t)}>Edit</DropdownMenuItem>
+                            <DropdownMenuItem>Pause</DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive" onClick={() => setTransactionToDelete(t)}>
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  )})}
+                </TableBody>
+              </Table>
+            </div>
+            <div className="grid gap-4 md:hidden">
+                {transactions && transactions.map((t) => {
+                    const nextDueDate = getNextDueDate(t);
+                    return (
+                        <Card key={t.id} className="p-4 grid gap-2">
+                            <div className="flex items-start justify-between">
+                                <div className="font-medium">{t.description}</div>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" className="h-8 w-8 p-0 -mt-1">
+                                            <span className="sr-only">Open menu</span>
+                                            <MoreHorizontal className="h-4 w-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuItem onClick={() => handleEdit(t)}>Edit</DropdownMenuItem>
+                                        <DropdownMenuItem>Pause</DropdownMenuItem>
+                                        <DropdownMenuItem className="text-destructive" onClick={() => setTransactionToDelete(t)}>
+                                            Delete
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
+                            <div className="flex items-center justify-between text-sm">
+                                <div className='flex items-center gap-2'>
+                                    <Badge variant="outline">{t.subcategory}</Badge>
+                                    <Badge variant="secondary" className="capitalize">{t.frequency}</Badge>
+                                </div>
+                                <div className={cn("font-bold", t.category === 'Income' ? 'text-green-600' : 'text-red-600')}>
+                                    {t.category === 'Income' ? '+' : '-'}₱{t.amount.toLocaleString()}
+                                </div>
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                                Next due: {nextDueDate ? format(nextDueDate, 'MMM d, yyyy') : 'Ended'}
+                            </div>
+                        </Card>
+                    );
+                })}
+            </div>
+          </>
           )}
         </CardContent>
       </Card>
