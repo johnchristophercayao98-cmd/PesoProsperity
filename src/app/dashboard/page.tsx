@@ -1,3 +1,4 @@
+
 "use client"
 import { useMemo } from "react"
 import {
@@ -60,6 +61,7 @@ const generateTransactionInstances = (
   periodEnd: Date,
 ): Transaction[] => {
   const instances: Transaction[] = [];
+  const today = startOfDay(new Date());
 
   recurringTxs.forEach((rt) => {
     const startDate = toDate(rt.startDate);
@@ -67,13 +69,16 @@ const generateTransactionInstances = (
 
     let currentDate = startDate;
     const endDate = toDate(rt.endDate);
+    
+    // Determine the real end date for generation, which is the minimum of periodEnd and today.
+    const generationEndDate = isBefore(periodEnd, today) ? periodEnd : today;
 
-    while (isBefore(currentDate, periodEnd) || isEqual(currentDate, periodEnd)) {
+    while (isBefore(currentDate, generationEndDate) || isEqual(currentDate, generationEndDate)) {
       if (endDate && isAfter(currentDate, endDate)) {
         break;
       }
-
-      if (isWithinInterval(currentDate, { start: periodStart, end: periodEnd })) {
+      
+      if (isWithinInterval(currentDate, { start: periodStart, end: generationEndDate })) {
         instances.push({
           ...rt,
           id: `${rt.id}-${currentDate.toISOString()}`,
@@ -82,7 +87,7 @@ const generateTransactionInstances = (
         });
       }
       
-      if (isAfter(currentDate, periodEnd)) break;
+      if (isAfter(currentDate, generationEndDate)) break;
 
       switch (rt.frequency) {
         case 'daily':
@@ -148,18 +153,32 @@ export default function DashboardPage() {
     }
 
     const now = new Date();
+    const today = startOfDay(now);
     const currentMonthStart = startOfMonth(now);
     const currentMonthEnd = endOfMonth(now);
     
-    // Generate instances for the last 6 months for chart + current month for stats
     const sixMonthsAgo = startOfMonth(subMonths(now, 5));
-    const recurringInstances = generateTransactionInstances(recurringTransactions, sixMonthsAgo, currentMonthEnd);
-    const allTransactions = [...singleTransactions, ...recurringInstances];
+    const recurringInstances = generateTransactionInstances(recurringTransactions, sixMonthsAgo, today);
+    const allTransactions = [...singleTransactions, ...recurringInstances].filter(t => {
+      const transactionDate = toDate(t.date);
+      return transactionDate && (isBefore(transactionDate, today) || isEqual(transactionDate, today));
+    });
 
     let netRevenue = 0;
     let totalExpenses = 0;
+    
+    // Recalculate cashReserve from the earliest transaction
     let cashReserve = 0;
+    const sortedForReserve = [...allTransactions].sort((a,b) => toDate(a.date)!.getTime() - toDate(b.date)!.getTime());
+    sortedForReserve.forEach(t => {
+      if (t.category === 'Income') {
+        cashReserve += t.amount;
+      } else {
+        cashReserve -= t.amount;
+      }
+    });
 
+    // Calculate current month's stats
     allTransactions.forEach(t => {
       const transactionDate = toDate(t.date);
       if (!transactionDate) return;
@@ -171,14 +190,8 @@ export default function DashboardPage() {
           totalExpenses += t.amount;
         }
       }
-
-      // Cash reserve is based on all transactions
-      if (t.category === 'Income') {
-        cashReserve += t.amount;
-      } else {
-        cashReserve -= t.amount;
-      }
     });
+
 
     const profitMargin = netRevenue > 0 ? ((netRevenue - totalExpenses) / netRevenue) * 100 : 0;
     
@@ -347,3 +360,5 @@ export default function DashboardPage() {
     </div>
   )
 }
+
+    

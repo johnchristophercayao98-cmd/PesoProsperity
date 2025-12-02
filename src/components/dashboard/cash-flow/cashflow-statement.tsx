@@ -2,7 +2,7 @@
 "use client"
 
 import { useState, useMemo } from "react";
-import { format, startOfYear, endOfYear, eachMonthOfInterval, startOfMonth, endOfMonth, isWithinInterval, addDays, addWeeks, addMonths, addYears, isAfter, isBefore, isEqual } from "date-fns";
+import { format, startOfYear, endOfYear, eachMonthOfInterval, startOfMonth, endOfMonth, isWithinInterval, addDays, addWeeks, addMonths, addYears, isAfter, isBefore, isEqual, startOfDay } from "date-fns";
 import { DollarSign, Loader2, TrendingDown, TrendingUp, CalendarIcon, Wallet } from "lucide-react";
 import type { Transaction, RecurringTransaction } from "@/lib/types";
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
@@ -28,6 +28,7 @@ const generateTransactionInstances = (
   periodEnd: Date,
 ): Transaction[] => {
   const instances: Transaction[] = [];
+  const today = startOfDay(new Date());
 
   recurringTxs.forEach((rt) => {
     const startDate = toDate(rt.startDate);
@@ -35,13 +36,15 @@ const generateTransactionInstances = (
 
     let currentDate = startDate;
     const endDate = toDate(rt.endDate);
+    
+    const generationEndDate = isBefore(periodEnd, today) ? periodEnd : today;
 
-    while (isBefore(currentDate, periodEnd) || isEqual(currentDate, periodEnd)) {
+    while (isBefore(currentDate, generationEndDate) || isEqual(currentDate, generationEndDate)) {
       if (endDate && isAfter(currentDate, endDate)) {
         break;
       }
 
-      if (isWithinInterval(currentDate, { start: periodStart, end: periodEnd })) {
+      if (isWithinInterval(currentDate, { start: periodStart, end: generationEndDate })) {
         instances.push({
           ...rt,
           id: `${rt.id}-${currentDate.toISOString()}`,
@@ -50,7 +53,7 @@ const generateTransactionInstances = (
         });
       }
       
-      if (isAfter(currentDate, periodEnd)) break;
+      if (isAfter(currentDate, generationEndDate)) break;
 
       switch (rt.frequency) {
         case 'daily':
@@ -104,16 +107,23 @@ export function CashflowStatement() {
     
     const yearStart = startOfYear(selectedDate);
     const yearEnd = endOfYear(selectedDate);
+    const today = startOfDay(new Date());
 
-    // Generate instances for the selected year and all prior years to calculate beginning balance
-    const veryFirstDate = singleTransactions[0] ? toDate(singleTransactions[0].date) : new Date();
-    const recurringInstancesAllTime = generateTransactionInstances(recurringTransactions, veryFirstDate || new Date(0), yearEnd);
-    const allTransactions = [...singleTransactions, ...recurringInstancesAllTime];
+    const earliestTransactionDate = singleTransactions.length > 0 ? toDate(singleTransactions[0].date) : new Date();
+
+    const generationEnd = isBefore(yearEnd, today) ? yearEnd : today;
+
+    const recurringInstancesAllTime = generateTransactionInstances(recurringTransactions, earliestTransactionDate || new Date(0), generationEnd);
+
+    const allTransactions = [...singleTransactions, ...recurringInstancesAllTime].filter(t => {
+        const transactionDate = toDate(t.date);
+        return transactionDate && (isBefore(transactionDate, today) || isEqual(transactionDate, today));
+    });
 
     const beginningBalance = allTransactions
       .filter(t => {
         const transactionDate = toDate(t.date);
-        return transactionDate && transactionDate < yearStart;
+        return transactionDate && isBefore(transactionDate, yearStart);
       })
       .reduce((acc, t) => acc + (t.category === 'Income' ? t.amount : -t.amount), 0);
       
@@ -121,6 +131,9 @@ export function CashflowStatement() {
     let runningBalance = beginningBalance;
 
     const monthlyData = monthsInYear.map(month => {
+      if (isAfter(month, today)) {
+        return null;
+      }
       const monthStart = startOfMonth(month);
       const monthEnd = endOfMonth(month);
 
@@ -148,7 +161,7 @@ export function CashflowStatement() {
         netChange,
         endingBalance: runningBalance,
       };
-    });
+    }).filter(Boolean) as { month: Date; inflows: number; outflows: number; netChange: number; endingBalance: number; }[];
 
     const totalInflows = monthlyData.reduce((sum, entry) => sum + entry.inflows, 0);
     const totalOutflows = monthlyData.reduce((sum, entry) => sum + entry.outflows, 0);
@@ -287,3 +300,5 @@ export function CashflowStatement() {
     </div>
   )
 }
+
+    

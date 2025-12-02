@@ -2,7 +2,7 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react";
-import { format, startOfMonth, endOfMonth, isWithinInterval, addDays, addWeeks, addMonths, addYears, isAfter, isBefore, isEqual } from "date-fns";
+import { format, startOfMonth, endOfMonth, isWithinInterval, addDays, addWeeks, addMonths, addYears, isAfter, isBefore, isEqual, startOfDay } from "date-fns";
 import type { Budget, Transaction, RecurringTransaction } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -45,6 +45,7 @@ const generateTransactionInstances = (
     periodEnd: Date
   ): Transaction[] => {
     const instances: Transaction[] = [];
+    const today = startOfDay(new Date());
   
     recurringTxs.forEach((rt) => {
       const startDate = toDate(rt.startDate);
@@ -52,13 +53,15 @@ const generateTransactionInstances = (
   
       let currentDate = startDate;
       const endDate = toDate(rt.endDate);
+
+      const generationEndDate = isBefore(periodEnd, today) ? periodEnd : today;
   
-      while (isBefore(currentDate, periodEnd) || isEqual(currentDate, periodEnd)) {
+      while (isBefore(currentDate, generationEndDate) || isEqual(currentDate, generationEndDate)) {
         if (endDate && isAfter(currentDate, endDate)) {
           break;
         }
   
-        if(isWithinInterval(currentDate, { start: periodStart, end: periodEnd })) {
+        if(isWithinInterval(currentDate, { start: periodStart, end: generationEndDate })) {
           instances.push({
             ...rt,
             id: `${rt.id}-${currentDate.toISOString()}`,
@@ -67,7 +70,7 @@ const generateTransactionInstances = (
           });
         }
         
-        if (isAfter(currentDate, periodEnd)) break;
+        if (isAfter(currentDate, generationEndDate)) break;
   
         switch (rt.frequency) {
           case 'daily':
@@ -344,3 +347,5 @@ export function VarianceReport() {
         </div>
     )
 }
+
+    
