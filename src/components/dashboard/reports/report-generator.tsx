@@ -285,7 +285,7 @@ export function ReportGenerator() {
 
         csvContent = 'Budget vs Actual Variance\n';
         csvContent += `For ${format(startDate, 'MMMM yyyy')}\n\n`;
-        csvContent += 'Title,Budget,Actual,Budget Variance,Percentage Variance\n';
+        csvContent += 'Category,Budget,Actual,Budget Variance,Percentage Variance\n';
         
         const allData = allCategories.map(getCategoryData);
 
@@ -348,8 +348,17 @@ export function ReportGenerator() {
         csvContent += summaryRow('Net Profit', netProfit) + '\n';
       
       } else if (reportType === 'cash-flow-statement') {
-        const months = eachMonthOfInterval({ start: startDate, end: endDate });
-        const monthHeaders = months.map(m => format(m, 'MMM-yy')).join(',');
+        const monthsInPeriod = eachMonthOfInterval({ start: startDate, end: endDate });
+        
+        // Ensure the last month is included if the end date is not the end of the month
+        const lastMonthInInterval = monthsInPeriod[monthsInPeriod.length - 1];
+        if (lastMonthInInterval && !isEqual(startOfMonth(lastMonthInInterval), startOfMonth(endDate))) {
+            // This is unlikely with eachMonthOfInterval but good for safety
+        } else if (isAfter(endDate, endOfMonth(lastMonthInInterval))) {
+            // This condition is also unlikely but as a safeguard.
+        }
+
+        const monthHeaders = monthsInPeriod.map(m => format(m, 'MMM-yy')).join(',');
         
         csvContent = `Cash Flow Statement\n`;
         csvContent += `For period ${format(startDate, 'd MMM yyyy')} to ${format(endDate, 'd MMM yyyy')}\n\n`;
@@ -372,7 +381,7 @@ export function ReportGenerator() {
         const incomeCategories = [...new Set(transactionsInRange.filter(t => t.category === 'Income').map(t => t.subcategory))];
         const expenseCategories = [...new Set(transactionsInRange.filter(t => t.category === 'Expense').map(t => t.subcategory))];
 
-        const monthlyData = months.map(month => {
+        const monthlyData = monthsInPeriod.map(month => {
             const monthStart = startOfMonth(month);
             const monthEnd = endOfMonth(month);
             
@@ -412,21 +421,21 @@ export function ReportGenerator() {
 
         const rows: { [key: string]: string[] } = {};
         
-        rows['Cash Inflow'] = Array(months.length).fill('');
+        rows['Cash Inflow'] = Array(monthsInPeriod.length).fill('');
         incomeCategories.forEach(cat => {
             rows[cat] = monthlyData.map(d => formatCurrencyForCSV(d.incomeByCategory[cat] || 0));
         });
         rows['Total cash inflow'] = monthlyData.map(d => formatCurrencyForCSV(d.totalInflow));
 
-        rows[''] = Array(months.length).fill(''); // Spacer
+        rows[''] = Array(monthsInPeriod.length).fill(''); // Spacer
 
-        rows['Cash Outflow'] = Array(months.length).fill('');
+        rows['Cash Outflow'] = Array(monthsInPeriod.length).fill('');
         expenseCategories.forEach(cat => {
             rows[cat] = monthlyData.map(d => formatCurrencyForCSV(d.expenseByCategory[cat] || 0));
         });
         rows['Total cash outflow'] = monthlyData.map(d => formatCurrencyForCSV(d.totalOutflow));
 
-        rows[' '] = Array(months.length).fill(''); // Spacer
+        rows[' '] = Array(monthsInPeriod.length).fill(''); // Spacer
 
         rows['Net cash flow'] = monthlyData.map(d => formatCurrencyForCSV(d.netCashFlow));
         rows['Opening balance'] = monthlyData.map(d => formatCurrencyForCSV(d.openingBalance));
@@ -541,4 +550,3 @@ export function ReportGenerator() {
   );
 }
 
-    
