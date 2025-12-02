@@ -361,66 +361,68 @@ export function DebtManager() {
               {editingDebt ? 'Update this liability.' : 'Record a new liability.'}
             </DialogDescription>
           </DialogHeader>
-          <Form {...addForm}>
-            <form
-              id="debt-form"
-              onSubmit={addForm.handleSubmit(handleAddDebt)}
-              className="space-y-4 overflow-y-auto"
-            >
-              <FormField
-                control={addForm.control}
-                name="creditor"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Creditor</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., BDO Unibank" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={addForm.control}
-                name="totalAmount"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Total Amount (₱)</FormLabel>
-                    <FormControl>
-                      <Input type="number" placeholder="500000" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={addForm.control}
-                name="interestRate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Interest Rate (%)</FormLabel>
-                    <FormControl>
-                      <Input type="number" placeholder="1.2" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={addForm.control}
-                name="nextPaymentDue"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Next Payment Due</FormLabel>
-                    <FormControl>
-                      <DatePicker date={field.value} setDate={field.onChange} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </form>
-          </Form>
+          <div className="overflow-y-auto px-1">
+            <Form {...addForm}>
+              <form
+                id="debt-form"
+                onSubmit={addForm.handleSubmit(handleAddDebt)}
+                className="space-y-4"
+              >
+                <FormField
+                  control={addForm.control}
+                  name="creditor"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Creditor</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., BDO Unibank" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={addForm.control}
+                  name="totalAmount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Total Amount (₱)</FormLabel>
+                      <FormControl>
+                        <Input type="number" placeholder="500000" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={addForm.control}
+                  name="interestRate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Interest Rate (%)</FormLabel>
+                      <FormControl>
+                        <Input type="number" placeholder="1.2" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={addForm.control}
+                  name="nextPaymentDue"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Next Payment Due</FormLabel>
+                      <FormControl>
+                        <DatePicker date={field.value} setDate={field.onChange} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </form>
+            </Form>
+          </div>
           <DialogFooter>
             <DialogClose asChild>
               <Button type="button" variant="secondary">
