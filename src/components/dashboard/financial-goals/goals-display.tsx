@@ -242,18 +242,18 @@ export function GoalsDisplay() {
         </Button>
       </div>
       <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
-        <DialogContent className="sm:max-w-[425px] flex flex-col max-h-[90vh]">
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>{dialogTitle}</DialogTitle>
             <DialogDescription>{dialogDescription}</DialogDescription>
           </DialogHeader>
-          <div className="flex-1 overflow-y-auto -mr-6 pr-6">
-            <Form {...form}>
+          <Form {...form}>
               <form
                 id="goal-form"
                 onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-4 px-6"
+                className="space-y-4"
               >
+            <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto px-1">
                 <FormField
                   control={form.control}
                   name="name"
@@ -317,19 +317,19 @@ export function GoalsDisplay() {
                     </FormItem>
                   )}
                 />
+            </div>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button type="button" variant="secondary">
+                  Cancel
+                </Button>
+              </DialogClose>
+              <Button type="submit" form="goal-form">
+                Save Goal
+              </Button>
+            </DialogFooter>
               </form>
             </Form>
-          </div>
-          <DialogFooter className="pt-4 border-t">
-            <DialogClose asChild>
-              <Button type="button" variant="secondary">
-                Cancel
-              </Button>
-            </DialogClose>
-            <Button type="submit" form="goal-form">
-              Save Goal
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -475,3 +475,5 @@ export function GoalsDisplay() {
     </>
   );
 }
+
+    
