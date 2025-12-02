@@ -155,11 +155,8 @@ export default function DashboardPage() {
     const now = new Date();
     const today = startOfDay(now);
     
-    // To calculate the true cash reserve and all-time stats, we need all transactions from the beginning of time.
-    const earliestTransactionDate = singleTransactions.length > 0
-        ? toDate(singleTransactions[singleTransactions.length - 1]?.date) ?? new Date(0)
-        : new Date(0);
-    const recurringAllTime = generateTransactionInstances(recurringTransactions, earliestTransactionDate, today);
+    // To calculate all-time stats, generate recurring instances from the beginning of time.
+    const recurringAllTime = generateTransactionInstances(recurringTransactions, new Date(0), today);
     const allTransactions = [...singleTransactions, ...recurringAllTime].filter(t => {
         const transactionDate = toDate(t.date);
         return transactionDate && (isBefore(transactionDate, today) || isEqual(transactionDate, today));
@@ -171,7 +168,7 @@ export default function DashboardPage() {
     
     const profitMargin = netRevenue > 0 ? ((netRevenue - totalExpenses) / netRevenue) * 100 : 0;
     
-    // Chart data still for the last 6 months
+    // Chart data is still for the last 6 months
     const sixMonthsAgo = startOfMonth(subMonths(now, 5));
     const transactionsForChart = allTransactions.filter(t => {
       const transactionDate = toDate(t.date);
@@ -343,5 +340,7 @@ export default function DashboardPage() {
     </div>
   )
 }
+
+    
 
     
