@@ -354,7 +354,7 @@ export function DebtManager() {
 
       {/* Add/Edit Debt Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={(open) => { setIsAddDialogOpen(open); if (!open) setEditingDebt(null)}}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md grid-rows-[auto,1fr,auto] max-h-[90vh]">
           <DialogHeader>
             <DialogTitle>{editingDebt ? 'Edit' : 'Add New'} Debt</DialogTitle>
             <DialogDescription>
@@ -365,7 +365,7 @@ export function DebtManager() {
             <form
               id="debt-form"
               onSubmit={addForm.handleSubmit(handleAddDebt)}
-              className="space-y-4 overflow-y-auto max-h-[70vh] p-1"
+              className="space-y-4 overflow-y-auto"
             >
               <FormField
                 control={addForm.control}

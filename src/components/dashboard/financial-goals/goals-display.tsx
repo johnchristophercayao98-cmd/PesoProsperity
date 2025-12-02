@@ -241,77 +241,91 @@ export function GoalsDisplay() {
         </Button>
       </div>
       <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[425px] grid-rows-[auto,1fr,auto] max-h-[90vh]">
           <DialogHeader>
             <DialogTitle>{dialogTitle}</DialogTitle>
             <DialogDescription>{dialogDescription}</DialogDescription>
           </DialogHeader>
-            <Form {...form}>
-              <form id="goal-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 overflow-y-auto max-h-[70vh] p-1">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Goal Name</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="e.g., New Office Equipment"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="targetAmount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Target Amount (₱)</FormLabel>
-                      <FormControl>
-                        <Input type="number" placeholder="150000" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="currentAmount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Current Amount (₱)</FormLabel>
-                      <FormControl>
-                        <Input type="number" placeholder="0" {...field} value={field.value ?? ''} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="deadline"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Deadline (Optional)</FormLabel>
-                      <FormControl>
-                        <DatePicker date={field.value} setDate={field.onChange} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </form>
-            </Form>
+          <Form {...form}>
+            <form
+              id="goal-form"
+              onSubmit={form.handleSubmit(onSubmit)}
+              className="space-y-4 overflow-y-auto"
+            >
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Goal Name</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="e.g., New Office Equipment"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="targetAmount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Target Amount (₱)</FormLabel>
+                    <FormControl>
+                      <Input type="number" placeholder="150000" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="currentAmount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Current Amount (₱)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        placeholder="0"
+                        {...field}
+                        value={field.value ?? ''}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="deadline"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Deadline (Optional)</FormLabel>
+                    <FormControl>
+                      <DatePicker
+                        date={field.value}
+                        setDate={field.onChange}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </form>
+          </Form>
           <DialogFooter>
             <DialogClose asChild>
               <Button type="button" variant="secondary">
                 Cancel
               </Button>
             </DialogClose>
-            <Button type="submit" form="goal-form">Save Goal</Button>
+            <Button type="submit" form="goal-form">
+              Save Goal
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
