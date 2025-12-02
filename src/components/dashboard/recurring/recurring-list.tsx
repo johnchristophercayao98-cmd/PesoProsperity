@@ -30,7 +30,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { format } from 'date-fns';
+import { format, addDays, addWeeks, addMonths, addYears, isBefore, startOfToday } from 'date-fns';
 import { cn } from '@/lib/utils';
 import {
   Dialog,
@@ -162,6 +162,40 @@ export function RecurringList() {
     }
     return undefined;
   }
+
+  const getNextDueDate = (transaction: RecurringTransaction): Date | null => {
+    const startDate = toDate(transaction.startDate);
+    if (!startDate) return null;
+
+    const today = startOfToday();
+    let nextDate = startDate;
+
+    const addInterval = (date: Date): Date => {
+        switch (transaction.frequency) {
+            case 'daily':
+                return addDays(date, 1);
+            case 'weekly':
+                return addWeeks(date, 1);
+            case 'monthly':
+                return addMonths(date, 1);
+            case 'yearly':
+                return addYears(date, 1);
+            default:
+                return date;
+        }
+    };
+    
+    while (isBefore(nextDate, today)) {
+        nextDate = addInterval(nextDate);
+    }
+    
+    const endDate = toDate(transaction.endDate);
+    if(endDate && isBefore(endDate, nextDate)) {
+        return null; // Past end date
+    }
+
+    return nextDate;
+  };
 
   const handleDialogOpenChange = (open: boolean) => {
     setIsDialogOpen(open);
@@ -480,7 +514,7 @@ export function RecurringList() {
             </TableHeader>
             <TableBody>
               {transactions && transactions.map((t) => {
-                const startDate = toDate(t.startDate);
+                const nextDueDate = getNextDueDate(t);
                 return (
                 <TableRow key={t.id}>
                   <TableCell className="font-medium">{t.description}</TableCell>
@@ -502,7 +536,7 @@ export function RecurringList() {
                       {t.frequency}
                     </Badge>
                   </TableCell>
-                  <TableCell>{startDate ? format(startDate, 'MMM d, yyyy') : 'Invalid Date'}</TableCell>
+                  <TableCell>{nextDueDate ? format(nextDueDate, 'MMM d, yyyy') : 'Ended'}</TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
