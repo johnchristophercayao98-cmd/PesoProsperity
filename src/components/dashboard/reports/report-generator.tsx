@@ -99,7 +99,7 @@ const generateTransactionInstances = (
   return instances;
 };
 
-const formatCurrencyForCSV = (value: number) => `"$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}"`;
+const formatCurrencyForCSV = (value: number) => `"₱${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}"`;
 
 export function ReportGenerator() {
   const [reportType, setReportType] = useState<string>();
@@ -347,7 +347,6 @@ export function ReportGenerator() {
         
         csvContent = `Cash Flow Statement\n`;
         csvContent += `For period ${format(startDate, 'd MMM yyyy')} to ${format(endDate, 'd MMM yyyy')}\n\n`;
-        csvContent += `Category,${monthHeaders}\n`;
 
         // Calculate beginning balance
         const openingBalance = allTransactions
@@ -358,6 +357,14 @@ export function ReportGenerator() {
             .reduce((acc, t) => acc + (t.category === 'Income' ? t.amount : -t.amount), 0);
 
         let runningBalance = openingBalance;
+        
+        const transactionsInRange = allTransactions.filter(t => {
+            const tDate = toDate(t.date);
+            return tDate && isWithinInterval(tDate, {start: startDate, end: endDate});
+        });
+        
+        const incomeCategories = [...new Set(transactionsInRange.filter(t => t.category === 'Income').map(t => t.subcategory))];
+        const expenseCategories = [...new Set(transactionsInRange.filter(t => t.category === 'Expense').map(t => t.subcategory))];
 
         const monthlyData = months.map(month => {
             const monthStart = startOfMonth(month);
@@ -367,58 +374,58 @@ export function ReportGenerator() {
                 const tDate = toDate(t.date);
                 return tDate && isWithinInterval(tDate, { start: monthStart, end: monthEnd });
             });
+            
+            const incomeByCategory = incomeCategories.reduce((acc, cat) => {
+                acc[cat] = transactionsThisMonth.filter(t => t.category === 'Income' && t.subcategory === cat).reduce((sum, t) => sum + t.amount, 0);
+                return acc;
+            }, {} as Record<string, number>);
 
-            const salesRevenue = transactionsThisMonth.filter(t => t.subcategory === 'Sales').reduce((sum, t) => sum + t.amount, 0);
-            // Assuming loans are recorded as transactions with a specific description/category. For now, let's use 'Other' income.
-            const loansReceived = transactionsThisMonth.filter(t => t.subcategory === 'Other' && t.category === 'Income').reduce((sum, t) => sum + t.amount, 0);
-            const interestReceived = transactionsThisMonth.filter(t => t.subcategory === 'Interest Income').reduce((sum, t) => sum + t.amount, 0);
-            const totalInflow = salesRevenue + loansReceived + interestReceived;
+            const expenseByCategory = expenseCategories.reduce((acc, cat) => {
+                acc[cat] = transactionsThisMonth.filter(t => t.category === 'Expense' && t.subcategory === cat).reduce((sum, t) => sum + t.amount, 0);
+                return acc;
+            }, {} as Record<string, number>);
 
-            const purchases = transactionsThisMonth.filter(t => t.subcategory === 'Cost of Goods Sold').reduce((sum, t) => sum + t.amount, 0);
-            const salaries = transactionsThisMonth.filter(t => t.subcategory === 'Salaries and Wages').reduce((sum, t) => sum + t.amount, 0);
-            const rent = transactionsThisMonth.filter(t => t.subcategory === 'Rent').reduce((sum, t) => sum + t.amount, 0);
-            const utilities = transactionsThisMonth.filter(t => t.subcategory === 'Utilities').reduce((sum, t) => sum + t.amount, 0);
-            const advertising = transactionsThisMonth.filter(t => t.subcategory === 'Marketing and Advertising').reduce((sum, t) => sum + t.amount, 0);
-            // Loan repayments need to be identified, assuming they are 'Other' expenses for now
-            const loanRepayments = transactionsThisMonth.filter(t => t.subcategory === 'Other' && t.category === 'Expense' && t.description.toLowerCase().includes('loan')).reduce((sum, t) => sum + t.amount, 0);
-            const interestPayments = 0; // Not tracked currently
-            const totalOutflow = purchases + salaries + rent + utilities + advertising + loanRepayments + interestPayments;
-
+            const totalInflow = Object.values(incomeByCategory).reduce((sum, amount) => sum + amount, 0);
+            const totalOutflow = Object.values(expenseByCategory).reduce((sum, amount) => sum + amount, 0);
+            
             const netCashFlow = totalInflow - totalOutflow;
             const currentMonthOpening = runningBalance;
             const closingBalance = currentMonthOpening + netCashFlow;
             runningBalance = closingBalance;
 
             return {
-                salesRevenue, loansReceived, interestReceived, totalInflow,
-                purchases, salaries, rent, utilities, advertising, loanRepayments, interestPayments, totalOutflow,
-                netCashFlow, openingBalance: currentMonthOpening, closingBalance
+                incomeByCategory,
+                expenseByCategory,
+                totalInflow,
+                totalOutflow,
+                netCashFlow,
+                openingBalance: currentMonthOpening,
+                closingBalance
             };
         });
 
-        const rows: { [key: string]: string[] } = {
-          'Cash inflow': [],
-          'Sales revenue': monthlyData.map(d => formatCurrencyForCSV(d.salesRevenue)),
-          'Loans received': monthlyData.map(d => formatCurrencyForCSV(d.loansReceived)),
-          'Interest received': monthlyData.map(d => formatCurrencyForCSV(d.interestReceived)),
-          'Total cash inflow': monthlyData.map(d => formatCurrencyForCSV(d.totalInflow)),
-          'Cash outflow': [],
-          'Purchases': monthlyData.map(d => formatCurrencyForCSV(d.purchases)),
-          'Salaries': monthlyData.map(d => formatCurrencyForCSV(d.salaries)),
-          'Rent': monthlyData.map(d => formatCurrencyForCSV(d.rent)),
-          'Utilities': monthlyData.map(d => formatCurrencyForCSV(d.utilities)),
-          'Advertising': monthlyData.map(d => formatCurrencyForCSV(d.advertising)),
-          'Loan repayments': monthlyData.map(d => formatCurrencyForCSV(d.loanRepayments)),
-          'Interest payments': monthlyData.map(d => formatCurrencyForCSV(d.interestPayments)),
-          'Total cash outflow': monthlyData.map(d => formatCurrencyForCSV(d.totalOutflow)),
-          'Net cash flow': monthlyData.map(d => formatCurrencyForCSV(d.netCashFlow)),
-          'Opening balance': monthlyData.map(d => formatCurrencyForCSV(d.openingBalance)),
-          'Closing balance': monthlyData.map(d => formatCurrencyForCSV(d.closingBalance)),
-        };
+        const rows: { [key: string]: string[] } = {};
+        rows['Cash inflow'] = Array(months.length).fill('');
+        incomeCategories.forEach(cat => {
+            rows[cat] = monthlyData.map(d => formatCurrencyForCSV(d.incomeByCategory[cat] || 0));
+        });
+        rows['Total cash inflow'] = monthlyData.map(d => formatCurrencyForCSV(d.totalInflow));
 
+        rows['Cash outflow'] = Array(months.length).fill('');
+        expenseCategories.forEach(cat => {
+            rows[cat] = monthlyData.map(d => formatCurrencyForCSV(d.expenseByCategory[cat] || 0));
+        });
+        rows['Total cash outflow'] = monthlyData.map(d => formatCurrencyForCSV(d.totalOutflow));
+
+        rows['Net cash flow'] = monthlyData.map(d => formatCurrencyForCSV(d.netCashFlow));
+        rows['Opening balance'] = monthlyData.map(d => formatCurrencyForCSV(d.openingBalance));
+        rows['Closing balance'] = monthlyData.map(d => formatCurrencyForCSV(d.closingBalance));
+
+        csvContent += `Category,${monthHeaders}\n`;
         for (const [title, values] of Object.entries(rows)) {
             csvContent += `"${title}",${values.join(',')}\n`;
         }
+
 
       } else {
         // Fallback for other report types
