@@ -2,9 +2,9 @@
 "use client"
 
 import { useState, useMemo } from "react";
-import { format, startOfYear, endOfYear, eachMonthOfInterval, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
+import { format, startOfYear, endOfYear, eachMonthOfInterval, startOfMonth, endOfMonth, isWithinInterval, addDays, addWeeks, addMonths, addYears, isAfter, isBefore, isEqual } from "date-fns";
 import { DollarSign, Loader2, TrendingDown, TrendingUp, CalendarIcon, Wallet } from "lucide-react";
-import type { Transaction } from "@/lib/types";
+import type { Transaction, RecurringTransaction } from "@/lib/types";
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -22,20 +22,77 @@ const toDate = (date: any): Date | undefined => {
   return undefined;
 }
 
+const generateTransactionInstances = (
+  recurringTxs: RecurringTransaction[],
+  periodStart: Date,
+  periodEnd: Date,
+): Transaction[] => {
+  const instances: Transaction[] = [];
+
+  recurringTxs.forEach((rt) => {
+    const startDate = toDate(rt.startDate);
+    if (!startDate) return;
+
+    let currentDate = startDate;
+    const endDate = toDate(rt.endDate);
+
+    while (isBefore(currentDate, periodEnd) || isEqual(currentDate, periodEnd)) {
+      if (endDate && isAfter(currentDate, endDate)) {
+        break;
+      }
+
+      if (isWithinInterval(currentDate, { start: periodStart, end: periodEnd })) {
+        instances.push({
+          ...rt,
+          id: `${rt.id}-${currentDate.toISOString()}`,
+          date: currentDate,
+          description: `${rt.description} (Recurring)`,
+        });
+      }
+      
+      if (isAfter(currentDate, periodEnd)) break;
+
+      switch (rt.frequency) {
+        case 'daily':
+          currentDate = addDays(currentDate, 1);
+          break;
+        case 'weekly':
+          currentDate = addWeeks(currentDate, 1);
+          break;
+        case 'monthly':
+          currentDate = addMonths(currentDate, 1);
+          break;
+        case 'yearly':
+          currentDate = addYears(currentDate, 1);
+          break;
+        default:
+          return;
+      }
+    }
+  });
+  return instances;
+};
+
 export function CashflowStatement() {
   const firestore = useFirestore();
   const { user } = useUser();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   
-  const transactionsQuery = useMemoFirebase(() => {
+  const singleTransactionsQuery = useMemoFirebase(() => {
     if (!user) return null;
     return query(collection(firestore, 'users', user.uid, 'expenses'), orderBy('date', 'asc'));
   }, [firestore, user]);
 
-  const { data: allTransactions, isLoading: isLoadingTransactions } = useCollection<Transaction>(transactionsQuery);
+  const recurringTransactionsQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(collection(firestore, 'users', user.uid, 'recurringTransactions'));
+  }, [firestore, user]);
+
+  const { data: singleTransactions, isLoading: isLoadingSingle } = useCollection<Transaction>(singleTransactionsQuery);
+  const { data: recurringTransactions, isLoading: isLoadingRecurring } = useCollection<RecurringTransaction>(recurringTransactionsQuery);
 
   const { monthlyData, beginningBalance, totalInflows, totalOutflows, endingBalance } = useMemo(() => {
-    if (!allTransactions) {
+    if (!singleTransactions || !recurringTransactions) {
       return {
         monthlyData: [],
         beginningBalance: 0,
@@ -47,6 +104,11 @@ export function CashflowStatement() {
     
     const yearStart = startOfYear(selectedDate);
     const yearEnd = endOfYear(selectedDate);
+
+    // Generate instances for the selected year and all prior years to calculate beginning balance
+    const veryFirstDate = singleTransactions[0] ? toDate(singleTransactions[0].date) : new Date();
+    const recurringInstancesAllTime = generateTransactionInstances(recurringTransactions, veryFirstDate || new Date(0), yearEnd);
+    const allTransactions = [...singleTransactions, ...recurringInstancesAllTime];
 
     const beginningBalance = allTransactions
       .filter(t => {
@@ -72,7 +134,7 @@ export function CashflowStatement() {
       const outflows = allTransactions
         .filter(t => {
           const transactionDate = toDate(t.date);
-          return transactionDate && isWithinInterval(transactionDate, { start: monthStart, end: monthEnd }) && t.category === 'Expense';
+          return transactionDate && isWithinInterval(transactionDate, { start: monthStart, end: monthEnd }) && t.category !== 'Income';
         })
         .reduce((sum, t) => sum + t.amount, 0);
       
@@ -99,10 +161,11 @@ export function CashflowStatement() {
       endingBalance: runningBalance
     };
 
-  }, [allTransactions, selectedDate]);
+  }, [singleTransactions, recurringTransactions, selectedDate]);
 
+  const isLoading = isLoadingSingle || isLoadingRecurring;
 
-  if (isLoadingTransactions) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
           <Loader2 className="mr-2 h-8 w-8 animate-spin" />
@@ -214,7 +277,7 @@ export function CashflowStatement() {
               ))}
             </TableBody>
           </Table>
-          {monthlyData.length === 0 && !isLoadingTransactions && (
+          {monthlyData.length === 0 && !isLoading && (
             <div className="text-center p-8 text-muted-foreground">
               No transactions found for the selected year.
             </div>
@@ -224,5 +287,3 @@ export function CashflowStatement() {
     </div>
   )
 }
-
-    

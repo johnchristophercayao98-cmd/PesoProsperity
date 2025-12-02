@@ -2,8 +2,8 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react";
-import { format, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
-import type { Budget, Transaction } from "@/lib/types";
+import { format, startOfMonth, endOfMonth, isWithinInterval, addDays, addWeeks, addMonths, addYears, isAfter, isBefore, isEqual } from "date-fns";
+import type { Budget, Transaction, RecurringTransaction } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
@@ -39,6 +39,57 @@ const toDate = (date: any): Date | undefined => {
   return undefined;
 };
 
+const generateTransactionInstances = (
+    recurringTxs: RecurringTransaction[],
+    periodStart: Date,
+    periodEnd: Date
+  ): Transaction[] => {
+    const instances: Transaction[] = [];
+  
+    recurringTxs.forEach((rt) => {
+      const startDate = toDate(rt.startDate);
+      if (!startDate) return;
+  
+      let currentDate = startDate;
+      const endDate = toDate(rt.endDate);
+  
+      while (isBefore(currentDate, periodEnd) || isEqual(currentDate, periodEnd)) {
+        if (endDate && isAfter(currentDate, endDate)) {
+          break;
+        }
+  
+        if(isWithinInterval(currentDate, { start: periodStart, end: periodEnd })) {
+          instances.push({
+            ...rt,
+            id: `${rt.id}-${currentDate.toISOString()}`,
+            date: currentDate,
+            description: `${rt.description} (Recurring)`,
+          });
+        }
+        
+        if (isAfter(currentDate, periodEnd)) break;
+  
+        switch (rt.frequency) {
+          case 'daily':
+            currentDate = addDays(currentDate, 1);
+            break;
+          case 'weekly':
+            currentDate = addWeeks(currentDate, 1);
+            break;
+          case 'monthly':
+            currentDate = addMonths(currentDate, 1);
+            break;
+          case 'yearly':
+            currentDate = addYears(currentDate, 1);
+            break;
+          default:
+            return;
+        }
+      }
+    });
+    return instances;
+  };
+
 export function VarianceReport() {
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
     
@@ -58,12 +109,18 @@ export function VarianceReport() {
 
     const { data: budgets, isLoading: isBudgetsLoading } = useCollection<Budget>(budgetsQuery);
 
-    const allTransactionsQuery = useMemoFirebase(() => {
+    const singleTransactionsQuery = useMemoFirebase(() => {
         if (!user) return null;
         return collection(firestore, 'users', user.uid, 'expenses');
     }, [firestore, user]);
+      
+    const recurringTransactionsQuery = useMemoFirebase(() => {
+        if (!user) return null;
+        return collection(firestore, 'users', user.uid, 'recurringTransactions');
+    }, [firestore, user]);
 
-    const { data: allTransactions, isLoading: isTransactionsLoading } = useCollection<Transaction>(allTransactionsQuery);
+    const { data: singleTransactions, isLoading: isSingleTransactionsLoading } = useCollection<Transaction>(singleTransactionsQuery);
+    const { data: recurringTransactions, isLoading: isRecurringTransactionsLoading } = useCollection<RecurringTransaction>(recurringTransactionsQuery);
 
     const budget = useMemo(() => {
         const baseBudget = budgets?.[0] ?? null;
@@ -72,7 +129,10 @@ export function VarianceReport() {
         const monthStart = startOfMonth(selectedDate);
         const monthEnd = endOfMonth(selectedDate);
     
-        const monthlyTransactions = (allTransactions || []).filter((t) => {
+        const recurringInstances = generateTransactionInstances(recurringTransactions || [], monthStart, monthEnd);
+        const allTransactions = [...(singleTransactions || []), ...recurringInstances];
+
+        const monthlyTransactions = allTransactions.filter((t) => {
           const transactionDate = toDate(t.date);
           return (
             transactionDate &&
@@ -94,9 +154,9 @@ export function VarianceReport() {
           income: calculateActuals(baseBudget.income || [], 'Income'),
           expenses: calculateActuals(baseBudget.expenses || [], 'Expense'),
         };
-      }, [budgets, allTransactions, selectedDate]);
+      }, [budgets, singleTransactions, recurringTransactions, selectedDate]);
 
-    const isLoading = isBudgetsLoading || isTransactionsLoading;
+    const isLoading = isBudgetsLoading || isSingleTransactionsLoading || isRecurringTransactionsLoading;
     const { income = [], expenses = [] } = budget || {};
     const overspentItems = expenses.filter(item => item.actual > item.budgeted);
 
@@ -284,5 +344,3 @@ export function VarianceReport() {
         </div>
     )
 }
-
-    

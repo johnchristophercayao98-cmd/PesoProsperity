@@ -24,10 +24,10 @@ import {
 } from "@/components/ui/chart"
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer } from "recharts"
 import { cn } from "@/lib/utils"
-import { format, startOfMonth, endOfMonth, subMonths, isWithinInterval } from "date-fns"
+import { format, startOfMonth, endOfMonth, subMonths, isWithinInterval, addDays, addWeeks, addMonths as dateFnsAddMonths, addYears, isAfter, isBefore, isEqual, startOfDay } from "date-fns"
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase"
-import { collection, query, orderBy, limit, Timestamp } from "firebase/firestore"
-import type { Transaction, FinancialGoal } from "@/lib/types"
+import { collection, query, orderBy, Timestamp } from "firebase/firestore"
+import type { Transaction, FinancialGoal, RecurringTransaction } from "@/lib/types"
 import { Loader2 } from "lucide-react"
 
 const chartConfig = {
@@ -54,14 +54,69 @@ const toDate = (date: any): Date | undefined => {
   return undefined;
 };
 
+const generateTransactionInstances = (
+  recurringTxs: RecurringTransaction[],
+  periodStart: Date,
+  periodEnd: Date,
+): Transaction[] => {
+  const instances: Transaction[] = [];
+
+  recurringTxs.forEach((rt) => {
+    const startDate = toDate(rt.startDate);
+    if (!startDate) return;
+
+    let currentDate = startDate;
+    const endDate = toDate(rt.endDate);
+
+    while (isBefore(currentDate, periodEnd) || isEqual(currentDate, periodEnd)) {
+      if (endDate && isAfter(currentDate, endDate)) {
+        break;
+      }
+
+      if (isWithinInterval(currentDate, { start: periodStart, end: periodEnd })) {
+        instances.push({
+          ...rt,
+          id: `${rt.id}-${currentDate.toISOString()}`,
+          date: currentDate,
+          description: `${rt.description} (Recurring)`,
+        });
+      }
+      
+      if (isAfter(currentDate, periodEnd)) break;
+
+      switch (rt.frequency) {
+        case 'daily':
+          currentDate = addDays(currentDate, 1);
+          break;
+        case 'weekly':
+          currentDate = addWeeks(currentDate, 1);
+          break;
+        case 'monthly':
+          currentDate = dateFnsAddMonths(currentDate, 1);
+          break;
+        case 'yearly':
+          currentDate = addYears(currentDate, 1);
+          break;
+        default:
+          return;
+      }
+    }
+  });
+  return instances;
+};
 
 export default function DashboardPage() {
   const { user } = useUser();
   const firestore = useFirestore();
 
-  const transactionsQuery = useMemoFirebase(() => {
+  const singleTransactionsQuery = useMemoFirebase(() => {
     if (!user) return null;
     return query(collection(firestore, 'users', user.uid, 'expenses'), orderBy('date', 'desc'));
+  }, [firestore, user]);
+
+  const recurringTransactionsQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(collection(firestore, 'users', user.uid, 'recurringTransactions'));
   }, [firestore, user]);
 
   const goalsQuery = useMemoFirebase(() => {
@@ -69,7 +124,8 @@ export default function DashboardPage() {
     return query(collection(firestore, 'users', user.uid, 'financialGoals'));
   }, [firestore, user]);
 
-  const { data: transactions, isLoading: isLoadingTransactions } = useCollection<Transaction>(transactionsQuery);
+  const { data: singleTransactions, isLoading: isLoadingSingle } = useCollection<Transaction>(singleTransactionsQuery);
+  const { data: recurringTransactions, isLoading: isLoadingRecurring } = useCollection<RecurringTransaction>(recurringTransactionsQuery);
   const { data: financialGoals, isLoading: isLoadingGoals } = useCollection<FinancialGoal>(goalsQuery);
 
   const {
@@ -80,7 +136,7 @@ export default function DashboardPage() {
     chartData,
     recentTransactions
   } = useMemo(() => {
-    if (!transactions) {
+    if (!singleTransactions || !recurringTransactions) {
       return {
         netRevenue: 0,
         totalExpenses: 0,
@@ -95,11 +151,16 @@ export default function DashboardPage() {
     const currentMonthStart = startOfMonth(now);
     const currentMonthEnd = endOfMonth(now);
     
+    // Generate instances for the last 6 months for chart + current month for stats
+    const sixMonthsAgo = startOfMonth(subMonths(now, 5));
+    const recurringInstances = generateTransactionInstances(recurringTransactions, sixMonthsAgo, currentMonthEnd);
+    const allTransactions = [...singleTransactions, ...recurringInstances];
+
     let netRevenue = 0;
     let totalExpenses = 0;
     let cashReserve = 0;
 
-    transactions.forEach(t => {
+    allTransactions.forEach(t => {
       const transactionDate = toDate(t.date);
       if (!transactionDate) return;
 
@@ -111,6 +172,7 @@ export default function DashboardPage() {
         }
       }
 
+      // Cash reserve is based on all transactions
       if (t.category === 'Income') {
         cashReserve += t.amount;
       } else {
@@ -125,22 +187,23 @@ export default function DashboardPage() {
       const monthStart = startOfMonth(date);
       const monthEnd = endOfMonth(date);
       
-      const monthTransactions = transactions.filter(t => {
+      const monthTransactions = allTransactions.filter(t => {
         const transactionDate = toDate(t.date);
         return transactionDate && isWithinInterval(transactionDate, { start: monthStart, end: monthEnd });
       });
 
       const income = monthTransactions.filter(t => t.category === 'Income').reduce((sum, t) => sum + t.amount, 0);
-      const expenses = monthTransactions.filter(t => t.category === 'Expense').reduce((sum, t) => sum + t.amount, 0);
+      const expenses = monthTransactions.filter(t => t.category !== 'Income').reduce((sum, t) => sum + t.amount, 0);
 
       return { month: format(date, 'MMM'), income, expenses };
     });
-
-    const recentTransactions = transactions.slice(0, 5);
+    
+    const sortedRecent = allTransactions.sort((a,b) => toDate(b.date)!.getTime() - toDate(a.date)!.getTime());
+    const recentTransactions = sortedRecent.slice(0, 5);
 
     return { netRevenue, totalExpenses, profitMargin, cashReserve, chartData, recentTransactions };
 
-  }, [transactions]);
+  }, [singleTransactions, recurringTransactions]);
   
   const mainStats = [
     {
@@ -165,7 +228,7 @@ export default function DashboardPage() {
     },
   ];
 
-  if (isLoadingTransactions || isLoadingGoals) {
+  if (isLoadingSingle || isLoadingRecurring || isLoadingGoals) {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="mr-2 h-8 w-8 animate-spin" />
@@ -231,10 +294,10 @@ export default function DashboardPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {recentTransactions.map((transaction) => {
+                {recentTransactions.map((transaction, index) => {
                   const transactionDate = toDate(transaction.date);
                   return (
-                  <TableRow key={transaction.id}>
+                  <TableRow key={transaction.id + '-' + index}>
                     <TableCell>
                       <div className="font-medium">{transaction.description}</div>
                       <div className="text-sm text-muted-foreground">

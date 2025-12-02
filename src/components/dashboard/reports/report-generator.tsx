@@ -31,8 +31,8 @@ import {
   getDocs,
   Timestamp,
 } from 'firebase/firestore';
-import { format } from 'date-fns';
-import type { Transaction } from '@/lib/types';
+import { format, addDays, addWeeks, addMonths, addYears, isAfter, isBefore, isEqual, isWithinInterval, startOfDay } from 'date-fns';
+import type { Transaction, RecurringTransaction } from '@/lib/types';
 
 const toDate = (date: any): Date | undefined => {
   if (!date) return undefined;
@@ -45,6 +45,57 @@ const toDate = (date: any): Date | undefined => {
     }
   }
   return undefined;
+};
+
+const generateTransactionInstances = (
+  recurringTxs: RecurringTransaction[],
+  periodStart: Date,
+  periodEnd: Date,
+): Transaction[] => {
+  const instances: Transaction[] = [];
+
+  recurringTxs.forEach((rt) => {
+    const startDate = toDate(rt.startDate);
+    if (!startDate) return;
+
+    let currentDate = startDate;
+    const endDate = toDate(rt.endDate);
+
+    while (isBefore(currentDate, periodEnd) || isEqual(currentDate, periodEnd)) {
+      if (endDate && isAfter(currentDate, endDate)) {
+        break;
+      }
+
+      if (isWithinInterval(currentDate, { start: periodStart, end: periodEnd })) {
+        instances.push({
+          ...rt,
+          id: `${rt.id}-${currentDate.toISOString()}`,
+          date: currentDate,
+          description: `${rt.description} (Recurring)`,
+        });
+      }
+      
+      if (isAfter(currentDate, periodEnd)) break;
+
+      switch (rt.frequency) {
+        case 'daily':
+          currentDate = addDays(currentDate, 1);
+          break;
+        case 'weekly':
+          currentDate = addWeeks(currentDate, 1);
+          break;
+        case 'monthly':
+          currentDate = addMonths(currentDate, 1);
+          break;
+        case 'yearly':
+          currentDate = addYears(currentDate, 1);
+          break;
+        default:
+          return;
+      }
+    }
+  });
+  return instances;
 };
 
 export function ReportGenerator() {
@@ -82,42 +133,53 @@ export function ReportGenerator() {
     });
 
     try {
-      const transactionsQuery = query(
+      const singleTransactionsQuery = query(
         collection(firestore, 'users', user.uid, 'expenses'),
         where('date', '>=', startDate),
         where('date', '<=', endDate)
       );
+      const recurringTransactionsQuery = query(collection(firestore, 'users', user.uid, 'recurringTransactions'));
 
-      const querySnapshot = await getDocs(transactionsQuery);
-      const transactions = querySnapshot.docs.map(
+      const singleSnapshot = await getDocs(singleTransactionsQuery);
+      const singleTransactions = singleSnapshot.docs.map(
         (doc) => ({ ...doc.data(), id: doc.id } as Transaction)
       );
+      
+      const recurringSnapshot = await getDocs(recurringTransactionsQuery);
+      const recurringTransactions = recurringSnapshot.docs.map(
+        (doc) => ({...doc.data(), id: doc.id } as RecurringTransaction)
+      );
 
-      if (transactions.length === 0) {
+      const recurringInstances = generateTransactionInstances(recurringTransactions, startDate, endDate);
+      const allTransactions = [...singleTransactions, ...recurringInstances];
+
+
+      if (allTransactions.length === 0) {
         toast({
             variant: 'destructive',
             title: 'No Data Found',
             description: 'There are no transactions in the selected date range.',
         });
+        setIsGenerating(false);
         return;
       }
       
-      transactions.sort((a,b) => toDate(a.date)!.getTime() - toDate(b.date)!.getTime());
+      allTransactions.sort((a,b) => toDate(a.date)!.getTime() - toDate(b.date)!.getTime());
 
       let csvContent = '';
       if (reportType === 'income-vs-expense') {
         let totalIncome = 0;
         let totalExpense = 0;
         
-        const dataRows = transactions.map(t => {
+        const dataRows = allTransactions.map(t => {
             const date = toDate(t.date);
             if (t.category === 'Income') {
                 totalIncome += t.amount;
                 return [
                     date ? format(date, 'd-MMM-yyyy') : '',
                     t.paymentMethod,
-                    t.description,
-                    t.category,
+                    `"${t.description.replace(/"/g, '""')}"`,
+                    t.subcategory,
                     t.amount.toFixed(2),
                     ''
                 ].join(',');
@@ -126,8 +188,8 @@ export function ReportGenerator() {
                 return [
                     date ? format(date, 'd-MMM-yyyy') : '',
                     t.paymentMethod,
-                    t.description,
-                    t.category,
+                    `"${t.description.replace(/"/g, '""')}"`,
+                    t.subcategory,
                     '',
                     t.amount.toFixed(2)
                 ].join(',');
@@ -143,7 +205,7 @@ export function ReportGenerator() {
       } else {
         // Fallback for other report types
         const headers = 'Date,Description,Category,Subcategory,Amount,PaymentMethod\n';
-        const rows = transactions
+        const rows = allTransactions
           .map((t) => {
             const date = toDate(t.date);
             return [
