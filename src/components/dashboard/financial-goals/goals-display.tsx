@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -241,17 +242,17 @@ export function GoalsDisplay() {
         </Button>
       </div>
       <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
-        <DialogContent className="sm:max-w-[425px] grid-rows-[auto,1fr,auto] max-h-[90vh]">
+        <DialogContent className="sm:max-w-[425px] flex flex-col max-h-[90vh]">
           <DialogHeader>
             <DialogTitle>{dialogTitle}</DialogTitle>
             <DialogDescription>{dialogDescription}</DialogDescription>
           </DialogHeader>
-          <div className="overflow-y-auto px-1">
+          <div className="flex-1 overflow-y-auto -mr-6 pr-6">
             <Form {...form}>
               <form
                 id="goal-form"
                 onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-4"
+                className="space-y-4 px-6"
               >
                 <FormField
                   control={form.control}
@@ -319,7 +320,7 @@ export function GoalsDisplay() {
               </form>
             </Form>
           </div>
-          <DialogFooter>
+          <DialogFooter className="pt-4 border-t">
             <DialogClose asChild>
               <Button type="button" variant="secondary">
                 Cancel
