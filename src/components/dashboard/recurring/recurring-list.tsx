@@ -166,34 +166,34 @@ export function RecurringList() {
   const getNextDueDate = (transaction: RecurringTransaction): Date | null => {
     const startDate = toDate(transaction.startDate);
     if (!startDate) return null;
-
-    const today = startOfToday();
+  
+    const tomorrow = addDays(startOfToday(), 1);
     let nextDate = startDate;
-
+  
     const addInterval = (date: Date): Date => {
-        switch (transaction.frequency) {
-            case 'daily':
-                return addDays(date, 1);
-            case 'weekly':
-                return addWeeks(date, 1);
-            case 'monthly':
-                return addMonths(date, 1);
-            case 'yearly':
-                return addYears(date, 1);
-            default:
-                return date;
-        }
+      switch (transaction.frequency) {
+        case 'daily':
+          return addDays(date, 1);
+        case 'weekly':
+          return addWeeks(date, 1);
+        case 'monthly':
+          return addMonths(date, 1);
+        case 'yearly':
+          return addYears(date, 1);
+        default:
+          return date;
+      }
     };
-    
-    while (isBefore(nextDate, today)) {
-        nextDate = addInterval(nextDate);
+  
+    while (isBefore(nextDate, tomorrow)) {
+      nextDate = addInterval(nextDate);
     }
-    
+  
     const endDate = toDate(transaction.endDate);
-    if(endDate && isBefore(endDate, nextDate)) {
-        return null; // Past end date
+    if (endDate && isBefore(endDate, nextDate)) {
+      return null; // Past end date
     }
-
+  
     return nextDate;
   };
 
