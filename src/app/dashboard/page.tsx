@@ -154,37 +154,8 @@ export default function DashboardPage() {
 
     const now = new Date();
     const today = startOfDay(now);
-    const currentMonthStart = startOfMonth(now);
-    const currentMonthEnd = endOfMonth(now);
     
-    // Generate instances for the last 6 months for chart and recent transactions.
-    const sixMonthsAgo = startOfMonth(subMonths(now, 5));
-    const recurringForChart = generateTransactionInstances(recurringTransactions, sixMonthsAgo, today);
-
-    // Combine transactions for chart and recent lists
-    const transactionsForChart = [...singleTransactions, ...recurringForChart].filter(t => {
-        const transactionDate = toDate(t.date);
-        return transactionDate && isWithinInterval(transactionDate, { start: sixMonthsAgo, end: today });
-    });
-
-    let netRevenue = 0;
-    let totalExpenses = 0;
-    
-    // Calculate current month's stats from chart data
-    transactionsForChart.forEach(t => {
-      const transactionDate = toDate(t.date);
-      if (!transactionDate) return;
-
-      if (isWithinInterval(transactionDate, { start: currentMonthStart, end: currentMonthEnd })) {
-        if (t.category === 'Income') {
-          netRevenue += t.amount;
-        } else {
-          totalExpenses += t.amount;
-        }
-      }
-    });
-
-    // To calculate the true cash reserve, we need all transactions from the beginning of time.
+    // To calculate the true cash reserve and all-time stats, we need all transactions from the beginning of time.
     const earliestTransactionDate = singleTransactions.length > 0
         ? toDate(singleTransactions[singleTransactions.length - 1]?.date) ?? new Date(0)
         : new Date(0);
@@ -194,10 +165,19 @@ export default function DashboardPage() {
         return transactionDate && (isBefore(transactionDate, today) || isEqual(transactionDate, today));
     });
 
-    const cashReserve = allTransactions.reduce((acc, t) => acc + (t.category === 'Income' ? t.amount : -t.amount), 0);
+    const netRevenue = allTransactions.filter(t => t.category === 'Income').reduce((sum, t) => sum + t.amount, 0);
+    const totalExpenses = allTransactions.filter(t => t.category !== 'Income').reduce((sum, t) => sum + t.amount, 0);
+    const cashReserve = netRevenue - totalExpenses;
     
     const profitMargin = netRevenue > 0 ? ((netRevenue - totalExpenses) / netRevenue) * 100 : 0;
     
+    // Chart data still for the last 6 months
+    const sixMonthsAgo = startOfMonth(subMonths(now, 5));
+    const transactionsForChart = allTransactions.filter(t => {
+      const transactionDate = toDate(t.date);
+      return transactionDate && isWithinInterval(transactionDate, { start: sixMonthsAgo, end: today });
+    });
+
     const chartData = Array.from({ length: 6 }).map((_, i) => {
       const date = subMonths(now, 5 - i);
       const monthStart = startOfMonth(date);
@@ -214,7 +194,7 @@ export default function DashboardPage() {
       return { month: format(date, 'MMM'), income, expenses };
     });
     
-    const sortedRecent = [...transactionsForChart].sort((a,b) => toDate(b.date)!.getTime() - toDate(a.date)!.getTime());
+    const sortedRecent = [...allTransactions].sort((a,b) => toDate(b.date)!.getTime() - toDate(a.date)!.getTime());
     const recentTransactions = sortedRecent.slice(0, 5);
 
     return { netRevenue, totalExpenses, profitMargin, cashReserve, chartData, recentTransactions };
@@ -225,17 +205,17 @@ export default function DashboardPage() {
     {
       title: 'Net Revenue',
       value: `₱${netRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      change: 'in ' + format(new Date(), 'MMMM'),
+      change: 'All-time total',
     },
     {
       title: 'Total Expenses',
       value: `₱${totalExpenses.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      change: 'in ' + format(new Date(), 'MMMM'),
+      change: 'All-time total',
     },
     {
       title: 'Profit Margin',
       value: `${profitMargin.toFixed(1)}%`,
-      change: 'in ' + format(new Date(), 'MMMM'),
+      change: 'All-time total',
     },
     {
       title: 'Cash Reserve',
@@ -363,3 +343,5 @@ export default function DashboardPage() {
     </div>
   )
 }
+
+    
