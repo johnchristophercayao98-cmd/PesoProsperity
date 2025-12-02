@@ -31,8 +31,8 @@ import {
   getDocs,
   Timestamp,
 } from 'firebase/firestore';
-import { format, addDays, addWeeks, addMonths, addYears, isAfter, isBefore, isEqual, isWithinInterval, startOfDay } from 'date-fns';
-import type { Transaction, RecurringTransaction } from '@/lib/types';
+import { format, addDays, addWeeks, addMonths, addYears, isAfter, isBefore, isEqual, isWithinInterval, startOfDay, startOfMonth, endOfMonth } from 'date-fns';
+import type { Transaction, RecurringTransaction, Budget, BudgetCategory } from '@/lib/types';
 
 const toDate = (date: any): Date | undefined => {
   if (!date) return undefined;
@@ -133,6 +133,7 @@ export function ReportGenerator() {
     });
 
     try {
+      // Common data fetching
       const singleTransactionsQuery = query(
         collection(firestore, 'users', user.uid, 'expenses'),
         where('date', '>=', startDate),
@@ -154,7 +155,7 @@ export function ReportGenerator() {
       const allTransactions = [...singleTransactions, ...recurringInstances];
 
 
-      if (allTransactions.length === 0) {
+      if (allTransactions.length === 0 && reportType !== 'budget-variance') {
         toast({
             variant: 'destructive',
             title: 'No Data Found',
@@ -201,6 +202,77 @@ export function ReportGenerator() {
         csvContent += `Total Expense:,${totalExpense.toFixed(2)}\n\n`;
         csvContent += 'Date,Account,Description,Category,Income,Expense\n';
         csvContent += dataRows;
+
+      } else if (reportType === 'budget-variance') {
+        const monthStartForBudget = startOfMonth(startDate);
+        const monthEndForBudget = endOfMonth(startDate);
+        
+        const budgetsQuery = query(
+            collection(firestore, 'users', user.uid, 'budgets'),
+            where('startDate', '>=', monthStartForBudget),
+            where('startDate', '<=', monthEndForBudget)
+        );
+        const budgetSnapshot = await getDocs(budgetsQuery);
+        if (budgetSnapshot.empty) {
+            toast({ variant: 'destructive', title: 'No Budget Found', description: `No budget set for ${format(startDate, 'MMMM yyyy')}.`});
+            setIsGenerating(false);
+            return;
+        }
+        const budget = budgetSnapshot.docs[0].data() as Budget;
+
+        // Transactions for the budget month
+        const monthlyTransactions = allTransactions.filter(t => {
+            const tDate = toDate(t.date);
+            return tDate && isWithinInterval(tDate, { start: monthStartForBudget, end: monthEndForBudget });
+        });
+
+        const processCategories = (budgetedCategories: BudgetCategory[], transactionType: 'Income' | 'Expense') => {
+            return budgetedCategories.map(cat => {
+                const actual = monthlyTransactions
+                    .filter(t => t.category === transactionType && t.subcategory === cat.name)
+                    .reduce((sum, t) => sum + t.amount, 0);
+                return { ...cat, actual };
+            });
+        };
+        
+        const incomeWithActuals = processCategories(budget.income || [], 'Income');
+        const expensesWithActuals = processCategories(budget.expenses || [], 'Expense');
+        
+        csvContent += 'Budget vs Actual Variance\n';
+        csvContent += `For ${format(startDate, 'MMMM yyyy')}\n\n`;
+
+        csvContent += 'Income\n';
+        csvContent += 'Category,Budgeted,Actual,Variance,Status\n';
+
+        let totalIncomeBudgeted = 0;
+        let totalIncomeActual = 0;
+
+        incomeWithActuals.forEach(item => {
+            const variance = item.actual - item.budgeted;
+            totalIncomeBudgeted += item.budgeted;
+            totalIncomeActual += item.actual;
+            csvContent += `"${item.name.replace(/"/g, '""')}",${item.budgeted.toFixed(2)},${item.actual.toFixed(2)},${variance.toFixed(2)},${variance >= 0 ? 'F' : 'U'}\n`;
+        });
+        csvContent += `Total Income,${totalIncomeBudgeted.toFixed(2)},${totalIncomeActual.toFixed(2)},${(totalIncomeActual - totalIncomeBudgeted).toFixed(2)},${(totalIncomeActual - totalIncomeBudgeted) >= 0 ? 'F' : 'U'}\n\n`;
+
+        csvContent += 'Expenses\n';
+        csvContent += 'Category,Budgeted,Actual,Variance,Status\n';
+        
+        let totalExpensesBudgeted = 0;
+        let totalExpensesActual = 0;
+
+        expensesWithActuals.forEach(item => {
+            const variance = item.budgeted - item.actual; // Favorable if actual is less than budgeted
+            totalExpensesBudgeted += item.budgeted;
+            totalExpensesActual += item.actual;
+            csvContent += `"${item.name.replace(/"/g, '""')}",${item.budgeted.toFixed(2)},${item.actual.toFixed(2)},${variance.toFixed(2)},${variance >= 0 ? 'F' : 'U'}\n`;
+        });
+        csvContent += `Total Expenses,${totalExpensesBudgeted.toFixed(2)},${totalExpensesActual.toFixed(2)},${(totalExpensesBudgeted - totalExpensesActual).toFixed(2)},${(totalExpensesBudgeted - totalExpensesActual) >= 0 ? 'F' : 'U'}\n\n`;
+
+        const netBudgeted = totalIncomeBudgeted - totalExpensesBudgeted;
+        const netActual = totalIncomeActual - totalExpensesActual;
+        const netVariance = netActual - netBudgeted;
+        csvContent += `Net Total,${netBudgeted.toFixed(2)},${netActual.toFixed(2)},${netVariance.toFixed(2)},${netVariance >= 0 ? 'F' : 'U'}\n`;
 
       } else {
         // Fallback for other report types
