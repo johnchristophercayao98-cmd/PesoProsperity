@@ -295,7 +295,7 @@ export function RecurringList() {
                 <form
                   id="recurring-form"
                   onSubmit={form.handleSubmit(onSubmit)}
-                  className="grid gap-4"
+                  className="space-y-4"
                 >
                    <FormField
                       control={form.control}

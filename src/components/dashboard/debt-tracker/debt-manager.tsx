@@ -355,83 +355,83 @@ export function DebtManager() {
 
       {/* Add/Edit Debt Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={(open) => { setIsAddDialogOpen(open); if (!open) setEditingDebt(null)}}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md flex flex-col max-h-[90vh]">
           <DialogHeader>
             <DialogTitle>{editingDebt ? 'Edit' : 'Add New'} Debt</DialogTitle>
             <DialogDescription>
               {editingDebt ? 'Update this liability.' : 'Record a new liability.'}
             </DialogDescription>
           </DialogHeader>
-          <Form {...addForm}>
-            <form
-              id="debt-form"
-              onSubmit={addForm.handleSubmit(handleAddDebt)}
-              className="grid gap-4 py-4"
-            >
-              <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto px-1">
-                <FormField
-                  control={addForm.control}
-                  name="creditor"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Creditor</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., BDO Unibank" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={addForm.control}
-                  name="totalAmount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Total Amount (₱)</FormLabel>
-                      <FormControl>
-                        <Input type="number" placeholder="500000" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={addForm.control}
-                  name="interestRate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Interest Rate (%)</FormLabel>
-                      <FormControl>
-                        <Input type="number" placeholder="1.2" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={addForm.control}
-                  name="nextPaymentDue"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Next Payment Due</FormLabel>
-                      <FormControl>
-                        <DatePicker date={field.value} setDate={field.onChange} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <DialogFooter>
-                <DialogClose asChild>
-                  <Button type="button" variant="secondary">
-                    Cancel
-                  </Button>
-                </DialogClose>
-                <Button type="submit">{editingDebt ? 'Save Changes' : 'Add Debt'}</Button>
-              </DialogFooter>
-            </form>
-          </Form>
+          <div className='flex-1 overflow-y-auto -mr-6 pr-6'>
+            <Form {...addForm}>
+              <form
+                id="debt-form"
+                onSubmit={addForm.handleSubmit(handleAddDebt)}
+                className="space-y-4"
+              >
+                  <FormField
+                    control={addForm.control}
+                    name="creditor"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Creditor</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., BDO Unibank" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={addForm.control}
+                    name="totalAmount"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Total Amount (₱)</FormLabel>
+                        <FormControl>
+                          <Input type="number" placeholder="500000" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={addForm.control}
+                    name="interestRate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Interest Rate (%)</FormLabel>
+                        <FormControl>
+                          <Input type="number" placeholder="1.2" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={addForm.control}
+                    name="nextPaymentDue"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col">
+                        <FormLabel>Next Payment Due</FormLabel>
+                        <FormControl>
+                          <DatePicker date={field.value} setDate={field.onChange} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+              </form>
+            </Form>
+          </div>
+          <DialogFooter className='pt-4'>
+            <DialogClose asChild>
+              <Button type="button" variant="secondary">
+                Cancel
+              </Button>
+            </DialogClose>
+            <Button type="submit" form="debt-form">{editingDebt ? 'Save Changes' : 'Add Debt'}</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

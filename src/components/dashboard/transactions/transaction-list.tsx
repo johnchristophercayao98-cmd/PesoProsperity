@@ -452,12 +452,12 @@ export function TransactionList() {
       </AlertDialog>
 
       <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
-        <DialogContent className="sm:max-w-md grid-rows-[auto,1fr,auto] max-h-[90vh]">
+        <DialogContent className="sm:max-w-md flex flex-col max-h-[90vh]">
           <DialogHeader>
             <DialogTitle>{dialogTitle}</DialogTitle>
             <DialogDescription>{dialogDescription}</DialogDescription>
           </DialogHeader>
-          <div className="overflow-y-auto px-1">
+          <div className="flex-1 overflow-y-auto -mr-6 pr-6">
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} id="transaction-form" className="space-y-4">
                 <FormField
@@ -571,7 +571,7 @@ export function TransactionList() {
               </form>
             </Form>
           </div>
-          <DialogFooter>
+          <DialogFooter className='pt-4'>
             <DialogClose asChild>
               <Button type="button" variant="secondary">
                 Cancel
@@ -584,5 +584,3 @@ export function TransactionList() {
     </>
   );
 }
-
-    
