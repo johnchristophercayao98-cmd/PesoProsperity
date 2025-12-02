@@ -165,10 +165,9 @@ export default function DashboardPage() {
     const netRevenue = allTransactions.filter(t => t.category === 'Income').reduce((sum, t) => sum + t.amount, 0);
     const totalExpenses = allTransactions.filter(t => t.category !== 'Income').reduce((sum, t) => sum + t.amount, 0);
     const cashReserve = netRevenue - totalExpenses;
-    
     const profitMargin = netRevenue > 0 ? ((netRevenue - totalExpenses) / netRevenue) * 100 : 0;
     
-    // Chart data is still for the last 6 months
+    // Chart data is for the last 6 months
     const sixMonthsAgo = startOfMonth(subMonths(now, 5));
     const transactionsForChart = allTransactions.filter(t => {
       const transactionDate = toDate(t.date);
@@ -340,5 +339,3 @@ export default function DashboardPage() {
     </div>
   )
 }
-
-  
