@@ -375,12 +375,10 @@ export function RecurringList() {
                     render={({ field }) => (
                       <FormItem className="flex flex-col">
                         <FormLabel>Start Date</FormLabel>
-                        <FormControl>
-                          <DatePicker
-                            date={field.value}
-                            setDate={field.onChange}
-                          />
-                        </FormControl>
+                        <DatePicker
+                          date={field.value}
+                          setDate={field.onChange}
+                        />
                         <FormMessage />
                       </FormItem>
                     )}
@@ -391,12 +389,10 @@ export function RecurringList() {
                     render={({ field }) => (
                       <FormItem className="flex flex-col">
                         <FormLabel>End Date (Optional)</FormLabel>
-                        <FormControl>
-                          <DatePicker
-                            date={field.value}
-                            setDate={field.onChange}
-                          />
-                        </FormControl>
+                        <DatePicker
+                          date={field.value}
+                          setDate={field.onChange}
+                        />
                         <FormMessage />
                       </FormItem>
                     )}
