@@ -17,6 +17,7 @@ export type RecurringTransaction = {
   description: string;
   amount: number;
   category: 'Income' | 'Expense';
+  subcategory: string;
   frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
   startDate: Date | Timestamp;
   endDate?: Date | Timestamp;

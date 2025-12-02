@@ -71,6 +71,10 @@
           "type": "string",
           "description": "Category of the transaction (e.g., 'Income', 'Expense')."
         },
+        "subcategory": {
+          "type": "string",
+          "description": "Sub-category of the transaction (e.g., 'Sales', 'Rent')."
+        },
         "paymentMethod": {
           "type": "string",
           "description": "Payment method used for the transaction (e.g., 'Cash', 'Bank Transfer')."
@@ -100,6 +104,7 @@
         "description",
         "amount",
         "category",
+        "subcategory",
         "paymentMethod",
         "frequency",
         "startDate"

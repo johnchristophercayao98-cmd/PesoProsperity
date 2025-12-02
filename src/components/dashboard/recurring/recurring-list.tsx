@@ -82,6 +82,7 @@ const recurringSchema = z.object({
   description: z.string().min(2, "Description is required"),
   amount: z.coerce.number().min(0.01, 'Amount must be positive.'),
   category: z.enum(['Income', 'Expense']),
+  subcategory: z.string().min(2, 'Subcategory is required.'),
   frequency: z.enum(['daily', 'weekly', 'monthly', 'yearly']),
   startDate: z.date({ required_error: 'Start date is required.' }),
   endDate: z.date().optional(),
@@ -89,6 +90,28 @@ const recurringSchema = z.object({
 });
 
 type RecurringFormData = z.infer<typeof recurringSchema>;
+
+const incomeCategories = [
+    'Sales',
+    'Services',
+    'Interest Income',
+    'Rental Income',
+    'Other',
+];
+
+const expenseCategories = [
+    'Cost of Goods Sold',
+    'Salaries and Wages',
+    'Rent',
+    'Utilities',
+    'Marketing and Advertising',
+    'Office Supplies',
+    'Software and Subscriptions',
+    'Taxes',
+    'Travel',
+    'Repairs and Maintenance',
+    'Other',
+];
 
 export function RecurringList() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -117,6 +140,7 @@ export function RecurringList() {
       category: 'Expense',
       frequency: 'monthly',
       description: '',
+      subcategory: '',
       amount: 0,
       paymentMethod: '',
       startDate: new Date(),
@@ -255,6 +279,23 @@ export function RecurringList() {
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
+                    name="amount"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Amount (₱)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            placeholder="25000"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                   <FormField
+                    control={form.control}
                     name="category"
                     render={({ field }) => (
                       <FormItem>
@@ -277,68 +318,81 @@ export function RecurringList() {
                       </FormItem>
                     )}
                   />
-                  <FormField
-                    control={form.control}
-                    name="amount"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Amount (₱)</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            placeholder="25000"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="frequency"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Frequency</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select frequency" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="daily">Daily</SelectItem>
-                            <SelectItem value="weekly">Weekly</SelectItem>
-                            <SelectItem value="monthly">Monthly</SelectItem>
-                            <SelectItem value="yearly">Yearly</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                   <FormField
+                 <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="subcategory"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Category</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            value={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select a category" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {(category === 'Income'
+                                ? incomeCategories
+                                : expenseCategories
+                              ).map((cat) => (
+                                <SelectItem key={cat} value={cat}>
+                                  {cat}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                     <FormField
+                        control={form.control}
+                        name="frequency"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Frequency</FormLabel>
+                            <Select
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select frequency" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="daily">Daily</SelectItem>
+                                <SelectItem value="weekly">Weekly</SelectItem>
+                                <SelectItem value="monthly">Monthly</SelectItem>
+                                <SelectItem value="yearly">Yearly</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                </div>
+                <FormField
                     control={form.control}
                     name="paymentMethod"
                     render={({ field }) => (
-                      <FormItem>
+                    <FormItem>
                         <FormLabel>Payment Method</FormLabel>
                         <FormControl>
-                          <Input
+                        <Input
                             placeholder="e.g., Bank Transfer"
                             {...field}
-                          />
+                        />
                         </FormControl>
                         <FormMessage />
-                      </FormItem>
+                    </FormItem>
                     )}
-                  />
-                </div>
+                />
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
@@ -415,6 +469,7 @@ export function RecurringList() {
             <TableHeader>
               <TableRow>
                 <TableHead>Description</TableHead>
+                <TableHead>Category</TableHead>
                 <TableHead>Amount</TableHead>
                 <TableHead>Frequency</TableHead>
                 <TableHead>Next Due</TableHead>
@@ -429,6 +484,9 @@ export function RecurringList() {
                 return (
                 <TableRow key={t.id}>
                   <TableCell className="font-medium">{t.description}</TableCell>
+                   <TableCell>
+                    <Badge variant="outline">{t.subcategory}</Badge>
+                  </TableCell>
                   <TableCell
                     className={cn(
                       t.category === 'Income'
