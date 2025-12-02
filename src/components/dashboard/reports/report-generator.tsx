@@ -226,53 +226,100 @@ export function ReportGenerator() {
             return tDate && isWithinInterval(tDate, { start: monthStartForBudget, end: monthEndForBudget });
         });
 
-        const processCategories = (budgetedCategories: BudgetCategory[], transactionType: 'Income' | 'Expense') => {
-            return budgetedCategories.map(cat => {
-                const actual = monthlyTransactions
-                    .filter(t => t.category === transactionType && t.subcategory === cat.name)
-                    .reduce((sum, t) => sum + t.amount, 0);
-                return { ...cat, actual };
-            });
+        const getCategoryData = (name: string, type: 'income' | 'expense') => {
+          const budgetedCategory = budget[type]?.find(c => c.name === name);
+          const budgeted = budgetedCategory?.budgeted || 0;
+          const actual = monthlyTransactions
+              .filter(t => t.category === (type === 'income' ? 'Income' : 'Expense') && t.subcategory === name)
+              .reduce((sum, t) => sum + t.amount, 0);
+          const variance = type === 'income' ? actual - budgeted : budgeted - actual;
+          const percentage = budgeted !== 0 ? (variance / budgeted) * 100 : 0;
+          return { name, budgeted, actual, variance, percentage };
         };
-        
-        const incomeWithActuals = processCategories(budget.income || [], 'Income');
-        const expensesWithActuals = processCategories(budget.expenses || [], 'Expense');
-        
-        csvContent += 'Budget vs Actual Variance\n';
+
+        const formatCurrency = (value: number) => `"$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}"`;
+        const formatPercent = (value: number) => `"${value.toFixed(2)}%"`;
+
+        const row = (title: string, data: { budgeted: number, actual: number, variance: number, percentage: number }, bold = false) => {
+          const titleStr = bold ? `"${title}"` : `  ${title}`;
+          return [
+            titleStr,
+            formatCurrency(data.budgeted),
+            formatCurrency(data.actual),
+            formatCurrency(data.variance),
+            formatPercent(data.percentage)
+          ].join(',');
+        };
+
+        const summaryRow = (title: string, data: { budgeted: number, actual: number, variance: number, percentage: number }) => row(title, data, true);
+
+        csvContent = 'Budget vs Actual Variance\n';
         csvContent += `For ${format(startDate, 'MMMM yyyy')}\n\n`;
+        csvContent += 'Title,Budget,Actual,Budget Variance,Percentage Variance\n';
 
-        csvContent += 'Income\n';
-        csvContent += 'Category,Budgeted,Actual,Variance,Status\n';
-
-        let totalIncomeBudgeted = 0;
-        let totalIncomeActual = 0;
-
-        incomeWithActuals.forEach(item => {
-            const variance = item.actual - item.budgeted;
-            totalIncomeBudgeted += item.budgeted;
-            totalIncomeActual += item.actual;
-            csvContent += `"${item.name.replace(/"/g, '""')}",${item.budgeted.toFixed(2)},${item.actual.toFixed(2)},${variance.toFixed(2)},${variance >= 0 ? 'F' : 'U'}\n`;
+        const grossSales = getCategoryData('Sales', 'income');
+        // Assuming other income categories contribute to gross sales for simplicity
+        budget.income?.filter(c => c.name !== 'Sales').forEach(c => {
+          const data = getCategoryData(c.name, 'income');
+          grossSales.budgeted += data.budgeted;
+          grossSales.actual += data.actual;
         });
-        csvContent += `Total Income,${totalIncomeBudgeted.toFixed(2)},${totalIncomeActual.toFixed(2)},${(totalIncomeActual - totalIncomeBudgeted).toFixed(2)},${(totalIncomeActual - totalIncomeBudgeted) >= 0 ? 'F' : 'U'}\n\n`;
-
-        csvContent += 'Expenses\n';
-        csvContent += 'Category,Budgeted,Actual,Variance,Status\n';
+        grossSales.variance = grossSales.actual - grossSales.budgeted;
+        grossSales.percentage = grossSales.budgeted ? (grossSales.variance / grossSales.budgeted) * 100 : 0;
         
-        let totalExpensesBudgeted = 0;
-        let totalExpensesActual = 0;
+        csvContent += summaryRow('Gross Sales', grossSales) + '\n';
+        csvContent += 'Less: Discounts,$ -,$ -,$ -,\n'; // Placeholder
+        csvContent += summaryRow('Net Sales', grossSales) + '\n';
+        
+        const cogsCats = ['Cost of Goods Sold', 'Raw Material Cost', 'Manufacturing Cost', 'Labor Cost'];
+        const cogsData = cogsCats.map(cat => getCategoryData(cat, 'expense'));
+        
+        const totalCogs = cogsData.reduce((acc, data) => {
+          acc.budgeted += data.budgeted;
+          acc.actual += data.actual;
+          return acc;
+        }, { budgeted: 0, actual: 0 });
+        totalCogs.variance = totalCogs.budgeted - totalCogs.actual;
+        totalCogs.percentage = totalCogs.budgeted ? (totalCogs.variance / totalCogs.budgeted) * 100 : 0;
 
-        expensesWithActuals.forEach(item => {
-            const variance = item.budgeted - item.actual; // Favorable if actual is less than budgeted
-            totalExpensesBudgeted += item.budgeted;
-            totalExpensesActual += item.actual;
-            csvContent += `"${item.name.replace(/"/g, '""')}",${item.budgeted.toFixed(2)},${item.actual.toFixed(2)},${variance.toFixed(2)},${variance >= 0 ? 'F' : 'U'}\n`;
+        csvContent += summaryRow('Less: Cost of Goods Sold', totalCogs) + '\n';
+        cogsData.filter(d => d.budgeted > 0 || d.actual > 0).forEach(d => {
+            csvContent += row(d.name, d) + '\n';
         });
-        csvContent += `Total Expenses,${totalExpensesBudgeted.toFixed(2)},${totalExpensesActual.toFixed(2)},${(totalExpensesBudgeted - totalExpensesActual).toFixed(2)},${(totalExpensesBudgeted - totalExpensesActual) >= 0 ? 'F' : 'U'}\n\n`;
 
-        const netBudgeted = totalIncomeBudgeted - totalExpensesBudgeted;
-        const netActual = totalIncomeActual - totalExpensesActual;
-        const netVariance = netActual - netBudgeted;
-        csvContent += `Net Total,${netBudgeted.toFixed(2)},${netActual.toFixed(2)},${netVariance.toFixed(2)},${netVariance >= 0 ? 'F' : 'U'}\n`;
+        const grossProfit = {
+          budgeted: grossSales.budgeted - totalCogs.budgeted,
+          actual: grossSales.actual - totalCogs.actual,
+          variance: (grossSales.actual - totalCogs.actual) - (grossSales.budgeted - totalCogs.budgeted),
+          percentage: 0
+        };
+        grossProfit.percentage = grossProfit.budgeted ? (grossProfit.variance / grossProfit.budgeted) * 100 : 0;
+        csvContent += summaryRow('Gross Profit', grossProfit) + '\n';
+        
+        const overheadCats = ['Salaries and Wages', 'Rent', 'Utilities', 'Marketing and Advertising', 'Office Supplies', 'Software and Subscriptions', 'Taxes', 'Travel', 'Repairs and Maintenance', 'Other'];
+        const overheadsData = overheadCats.map(cat => getCategoryData(cat, 'expense'));
+
+        const totalOverheads = overheadsData.reduce((acc, data) => {
+          acc.budgeted += data.budgeted;
+          acc.actual += data.actual;
+          return acc;
+        }, { budgeted: 0, actual: 0 });
+        totalOverheads.variance = totalOverheads.budgeted - totalOverheads.actual;
+        totalOverheads.percentage = totalOverheads.budgeted ? (totalOverheads.variance / totalOverheads.budgeted) * 100 : 0;
+
+        csvContent += summaryRow('Less: Overheads', totalOverheads) + '\n';
+        overheadsData.filter(d => d.budgeted > 0 || d.actual > 0).forEach(d => {
+            csvContent += row(d.name, d) + '\n';
+        });
+        
+        const netProfit = {
+            budgeted: grossProfit.budgeted - totalOverheads.budgeted,
+            actual: grossProfit.actual - totalOverheads.actual,
+            variance: (grossProfit.actual - totalOverheads.actual) - (grossProfit.budgeted - totalOverheads.budgeted),
+            percentage: 0
+        };
+        netProfit.percentage = netProfit.budgeted ? (netProfit.variance / netProfit.budgeted) * 100 : 0;
+        csvContent += summaryRow('Net Profit', netProfit) + '\n';
 
       } else {
         // Fallback for other report types
@@ -345,7 +392,7 @@ export function ReportGenerator() {
                 Income vs. Expense
               </SelectItem>
               <SelectItem value="budget-variance">
-                Budget vs. Actual Variance
+                Budget vs Actual Variance
               </SelectItem>
               <SelectItem value="debt-payoff">Debt Payoff Progress</SelectItem>
               <SelectItem value="cash-flow-statement">
