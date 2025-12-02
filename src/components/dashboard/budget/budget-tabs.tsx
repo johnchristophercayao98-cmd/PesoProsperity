@@ -71,6 +71,7 @@ import {
   Calendar as CalendarIcon,
   Trash2,
   MoreVertical,
+  X,
 } from 'lucide-react';
 import {
   suggestMonthlyBudget,
@@ -392,6 +393,16 @@ export function BudgetTabs() {
     }
   };
 
+  const handleRemoveFile = () => {
+    setFileName(null);
+    setAiResult(null);
+    // Reset the file input element
+    const fileInput = document.getElementById('financial-data-file') as HTMLInputElement;
+    if (fileInput) {
+        fileInput.value = '';
+    }
+  };
+
   const renderBudgetTable = (
     title: string,
     data: any[],
@@ -609,8 +620,8 @@ export function BudgetTabs() {
             <CardHeader>
               <CardTitle>AI Budget Suggester</CardTitle>
               <CardDescription>
-                Upload a CSV of your financial data to get a personalized
-                budget suggestion.
+                Upload a CSV, PDF, or Excel file of your financial data to get a
+                personalized budget suggestion.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -621,15 +632,16 @@ export function BudgetTabs() {
                 <Input
                   id="financial-data-file"
                   type="file"
-                  accept=".csv, text/csv"
+                  accept=".csv, text/csv, application/pdf, application/vnd.ms-excel, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                   className="hidden"
                   onChange={handleFileChange}
-                  disabled={isLoading}
+                  disabled={isLoading || !!fileName}
                 />
                 <Button
                   asChild
                   variant="outline"
                   className="w-full cursor-pointer"
+                  disabled={isLoading || !!fileName}
                 >
                   <label htmlFor="financial-data-file">
                     <Upload className="mr-2 h-4 w-4" />
@@ -644,9 +656,20 @@ export function BudgetTabs() {
                 </div>
               )}
               {fileName && !isLoading && (
-                <div className="flex items-center p-3 rounded-md border bg-secondary/50">
-                  <FileText className="h-5 w-5 mr-2 text-primary" />
-                  <span className="text-sm font-medium">{fileName}</span>
+                <div className="flex items-center justify-between p-3 rounded-md border bg-secondary/50">
+                    <div className="flex items-center gap-2">
+                        <FileText className="h-5 w-5 text-primary" />
+                        <span className="text-sm font-medium">{fileName}</span>
+                    </div>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={handleRemoveFile}
+                    >
+                        <X className="h-4 w-4" />
+                        <span className="sr-only">Remove file</span>
+                    </Button>
                 </div>
               )}
               {aiResult && aiResult.suggestedBudget && (
