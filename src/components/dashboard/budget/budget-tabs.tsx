@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -69,7 +70,6 @@ import {
   FileText,
   PlusCircle,
   Calendar as CalendarIcon,
-  Trash2,
   MoreVertical,
   X,
 } from 'lucide-react';
@@ -78,8 +78,8 @@ import {
   SuggestMonthlyBudgetOutput,
 } from '@/ai/flows/automated-budget-suggestions';
 import type { Budget, BudgetCategory } from '@/lib/types';
-import type { Transaction } from '@/lib/types';
-import { format, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
+import type { Transaction, RecurringTransaction } from '@/lib/types';
+import { format, startOfMonth, endOfMonth, isWithinInterval, addDays, addWeeks, addMonths, addYears, isAfter, isBefore, isEqual, startOfDay } from 'date-fns';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -148,6 +148,60 @@ const toDate = (date: any): Date | undefined => {
   return undefined;
 };
 
+const generateTransactionInstances = (
+  recurringTxs: RecurringTransaction[],
+  periodStart: Date,
+  periodEnd: Date
+): Transaction[] => {
+  const instances: Transaction[] = [];
+  const today = startOfDay(new Date());
+
+  recurringTxs.forEach((rt) => {
+    const startDate = toDate(rt.startDate);
+    if (!startDate) return;
+
+    let currentDate = startDate;
+    const endDate = toDate(rt.endDate);
+
+    const generationEndDate = isBefore(periodEnd, today) ? periodEnd : today;
+
+    while (isBefore(currentDate, generationEndDate) || isEqual(currentDate, generationEndDate)) {
+      if (endDate && isAfter(currentDate, endDate)) {
+        break;
+      }
+
+      if(isWithinInterval(currentDate, { start: periodStart, end: generationEndDate })) {
+        instances.push({
+          ...rt,
+          id: `${rt.id}-${currentDate.toISOString()}`,
+          date: currentDate,
+          description: `${rt.description} (Recurring)`,
+        });
+      }
+      
+      if (isAfter(currentDate, generationEndDate)) break;
+
+      switch (rt.frequency) {
+        case 'daily':
+          currentDate = addDays(currentDate, 1);
+          break;
+        case 'weekly':
+          currentDate = addWeeks(currentDate, 1);
+          break;
+        case 'monthly':
+          currentDate = addMonths(currentDate, 1);
+          break;
+        case 'yearly':
+          currentDate = addYears(currentDate, 1);
+          break;
+        default:
+          return;
+      }
+    }
+  });
+  return instances;
+};
+
 export function BudgetTabs() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -181,13 +235,18 @@ export function BudgetTabs() {
   const { data: budgets, isLoading: isBudgetsLoading } =
     useCollection<Budget>(budgetsQuery);
 
-  const allTransactionsQuery = useMemoFirebase(() => {
+  const singleTransactionsQuery = useMemoFirebase(() => {
     if (!user) return null;
     return collection(firestore, 'users', user.uid, 'expenses');
   }, [firestore, user]);
+  
+  const recurringTransactionsQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return collection(firestore, 'users', user.uid, 'recurringTransactions');
+  }, [firestore, user]);
 
-  const { data: allTransactions, isLoading: isTransactionsLoading } =
-    useCollection<Transaction>(allTransactionsQuery);
+  const { data: singleTransactions, isLoading: isSingleTransactionsLoading } = useCollection<Transaction>(singleTransactionsQuery);
+  const { data: recurringTransactions, isLoading: isRecurringTransactionsLoading } = useCollection<RecurringTransaction>(recurringTransactionsQuery);
 
   const budget = useMemo(() => {
     const baseBudget = budgets?.[0] ?? null;
@@ -195,8 +254,11 @@ export function BudgetTabs() {
 
     const monthStart = startOfMonth(selectedDate);
     const monthEnd = endOfMonth(selectedDate);
+    
+    const recurringInstances = generateTransactionInstances(recurringTransactions || [], monthStart, monthEnd);
+    const allTransactions = [...(singleTransactions || []), ...recurringInstances];
 
-    const monthlyTransactions = (allTransactions || []).filter((t) => {
+    const monthlyTransactions = allTransactions.filter((t) => {
       const transactionDate = toDate(t.date);
       return (
         transactionDate &&
@@ -223,7 +285,7 @@ export function BudgetTabs() {
       income: calculateActuals(baseBudget.income || [], 'Income'),
       expenses: calculateActuals(baseBudget.expenses || [], 'Expense'),
     };
-  }, [budgets, allTransactions, selectedDate]);
+  }, [budgets, singleTransactions, recurringTransactions, selectedDate]);
 
   const budgetItemForm = useForm<BudgetItemFormData>({
     resolver: zodResolver(budgetItemSchema),
@@ -575,7 +637,7 @@ export function BudgetTabs() {
               </div>
             </CardHeader>
             <CardContent>
-              {isBudgetsLoading || isTransactionsLoading ? (
+              {isBudgetsLoading || isSingleTransactionsLoading || isRecurringTransactionsLoading ? (
                 <div className="flex items-center justify-center p-8">
                   <Loader2 className="mr-2 h-8 w-8 animate-spin" />
                   <p>Loading budget...</p>
