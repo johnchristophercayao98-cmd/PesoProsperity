@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import { useState, useMemo } from "react";
@@ -19,7 +20,12 @@ const toDate = (date: any): Date | undefined => {
   if (!date) return undefined;
   if (date instanceof Date) return date;
   if (date instanceof Timestamp) return date.toDate();
-  if (typeof date === 'string' || typeof date === 'number') return new Date(date);
+  if (typeof date === 'string' || typeof date === 'number') {
+    const parsedDate = new Date(date);
+    if (!isNaN(parsedDate.getTime())) {
+      return parsedDate;
+    }
+  }
   return undefined;
 }
 
@@ -38,6 +44,7 @@ const generateTransactionInstances = (
     let currentDate = startDate;
     const endDate = toDate(rt.endDate);
     
+    // Determine the real end date for generation, which is the minimum of periodEnd and today.
     const generationEndDate = isBefore(periodEnd, today) ? periodEnd : today;
 
     while (isBefore(currentDate, generationEndDate) || isEqual(currentDate, generationEndDate)) {
@@ -107,17 +114,25 @@ export default function StatementPage() {
     }
     
     const yearStart = startOfYear(selectedDate);
-    const yearEnd = endOfYear(selectedDate);
     const today = startOfDay(new Date());
 
-    const earliestTransactionDate = singleTransactions.length > 0 
-        ? toDate(singleTransactions[0].date) ?? new Date(0)
-        : new Date(0);
-
-    const generationEnd = isBefore(yearEnd, today) ? yearEnd : today;
-
     // We need all transactions from the beginning of time to calculate the correct beginning balance
-    const recurringInstancesAllTime = generateTransactionInstances(recurringTransactions, earliestTransactionDate, generationEnd);
+    const earliestSingleDate = singleTransactions.length > 0 ? toDate(singleTransactions[0].date) : null;
+    const earliestRecurringDate = recurringTransactions.length > 0 
+        ? recurringTransactions.map(rt => toDate(rt.startDate)).reduce((earliest, current) => (current && earliest && current < earliest) ? current : earliest, toDate(recurringTransactions[0].startDate))
+        : null;
+
+    let earliestTransactionDate = new Date(0);
+    if (earliestSingleDate && earliestRecurringDate) {
+        earliestTransactionDate = earliestSingleDate < earliestRecurringDate ? earliestSingleDate : earliestRecurringDate;
+    } else if (earliestSingleDate) {
+        earliestTransactionDate = earliestSingleDate;
+    } else if (earliestRecurringDate) {
+        earliestTransactionDate = earliestRecurringDate;
+    }
+
+
+    const recurringInstancesAllTime = generateTransactionInstances(recurringTransactions, earliestTransactionDate, today);
 
     const allTransactions = [...singleTransactions, ...recurringInstancesAllTime].filter(t => {
         const transactionDate = toDate(t.date);
@@ -131,13 +146,10 @@ export default function StatementPage() {
       })
       .reduce((acc, t) => acc + (t.category === 'Income' ? t.amount : -t.amount), 0);
       
-    const monthsInYear = eachMonthOfInterval({ start: yearStart, end: yearEnd });
+    const monthsInYear = eachMonthOfInterval({ start: yearStart, end: today });
     let runningBalance = beginningBalance;
 
     const monthlyData = monthsInYear.map(month => {
-      if (isAfter(month, today)) {
-        return null;
-      }
       const monthStart = startOfMonth(month);
       const monthEnd = endOfMonth(month);
 
@@ -169,13 +181,14 @@ export default function StatementPage() {
 
     const totalInflows = monthlyData.reduce((sum, entry) => sum + entry.inflows, 0);
     const totalOutflows = monthlyData.reduce((sum, entry) => sum + entry.outflows, 0);
+    const endOfYearDate = endOfYear(selectedDate);
     
     return {
       monthlyData,
       beginningBalance,
       totalInflows,
       totalOutflows,
-      endingBalance: runningBalance
+      endingBalance: isAfter(today, endOfYearDate) ? beginningBalance + totalInflows - totalOutflows : runningBalance
     };
 
   }, [singleTransactions, recurringTransactions, selectedDate]);
@@ -258,7 +271,7 @@ export default function StatementPage() {
             </CardHeader>
             <CardContent>
                 <div className="text-2xl font-bold">₱{endingBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                <p className="text-xs text-muted-foreground">As of {format(endOfYear(selectedDate), "MMM d, yyyy")}</p>
+                <p className="text-xs text-muted-foreground">As of {format(monthlyData[monthlyData.length-1]?.month || new Date(), "MMM d, yyyy")}</p>
             </CardContent>
           </Card>
       </div>
