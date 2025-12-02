@@ -241,14 +241,13 @@ export function GoalsDisplay() {
         </Button>
       </div>
       <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
-        <DialogContent className="sm:max-w-[425px] grid-rows-[auto_1fr_auto] p-0 max-h-[90dvh]">
-          <DialogHeader className="p-6 pb-0">
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
             <DialogTitle>{dialogTitle}</DialogTitle>
             <DialogDescription>{dialogDescription}</DialogDescription>
           </DialogHeader>
-          <div className="overflow-y-auto px-6">
             <Form {...form}>
-              <form id="goal-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <form id="goal-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 overflow-y-auto max-h-[70vh] p-1">
                 <FormField
                   control={form.control}
                   name="name"
@@ -306,8 +305,7 @@ export function GoalsDisplay() {
                 />
               </form>
             </Form>
-          </div>
-          <DialogFooter className="p-6 pt-0 border-t">
+          <DialogFooter>
             <DialogClose asChild>
               <Button type="button" variant="secondary">
                 Cancel

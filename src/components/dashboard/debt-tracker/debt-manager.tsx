@@ -363,8 +363,9 @@ export function DebtManager() {
           </DialogHeader>
           <Form {...addForm}>
             <form
+              id="debt-form"
               onSubmit={addForm.handleSubmit(handleAddDebt)}
-              className="space-y-4"
+              className="space-y-4 overflow-y-auto max-h-[70vh] p-1"
             >
               <FormField
                 control={addForm.control}
@@ -418,16 +419,16 @@ export function DebtManager() {
                   </FormItem>
                 )}
               />
-              <DialogFooter>
-                <DialogClose asChild>
-                  <Button type="button" variant="secondary">
-                    Cancel
-                  </Button>
-                </DialogClose>
-                <Button type="submit">{editingDebt ? 'Save Changes' : 'Add Debt'}</Button>
-              </DialogFooter>
             </form>
           </Form>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="secondary">
+                Cancel
+              </Button>
+            </DialogClose>
+            <Button type="submit" form="debt-form">{editingDebt ? 'Save Changes' : 'Add Debt'}</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
