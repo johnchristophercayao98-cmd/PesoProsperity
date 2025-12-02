@@ -78,37 +78,14 @@ import { collection, doc, query, Timestamp } from 'firebase/firestore';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 
-const incomeCategories = [
-  'Sales',
-  'Services',
-  'Interest Income',
-  'Rental Income',
-  'Other',
-];
-
-const expenseCategories = [
-  'Cost of Goods Sold',
-  'Salaries and Wages',
-  'Rent',
-  'Utilities',
-  'Marketing and Advertising',
-  'Office Supplies',
-  'Software and Subscriptions',
-  'Taxes',
-  'Travel',
-  'Repairs and Maintenance',
-  'Other',
-];
-
 const recurringSchema = z.object({
-  category: z.string().min(3, 'Category is required.'),
+  description: z.string().min(2, "Description is required"),
   amount: z.coerce.number().min(0.01, 'Amount must be positive.'),
-  type: z.enum(['Income', 'Expense']),
+  category: z.enum(['Income', 'Expense']),
   frequency: z.enum(['daily', 'weekly', 'monthly', 'yearly']),
   startDate: z.date({ required_error: 'Start date is required.' }),
   endDate: z.date().optional(),
   paymentMethod: z.string().min(2, 'Payment method is required.'),
-  description: z.string().min(2, "Description is required"),
 });
 
 type RecurringFormData = z.infer<typeof recurringSchema>;
@@ -137,18 +114,17 @@ export function RecurringList() {
   const form = useForm<RecurringFormData>({
     resolver: zodResolver(recurringSchema),
     defaultValues: {
-      type: 'Expense',
+      category: 'Expense',
       frequency: 'monthly',
-      category: '',
+      description: '',
       amount: 0,
       paymentMethod: '',
       startDate: new Date(),
       endDate: undefined,
-      description: '',
     },
   });
 
-  const type = form.watch('type');
+  const category = form.watch('category');
   
   const toDate = (date: any): Date | undefined => {
     if (!date) return undefined;
@@ -175,7 +151,6 @@ export function RecurringList() {
     setEditingTransaction(transaction);
     form.reset({
       ...transaction,
-      type: transaction.category,
       startDate: toDate(transaction.startDate)!,
       endDate: toDate(transaction.endDate),
     });
@@ -196,27 +171,21 @@ export function RecurringList() {
   const onSubmit = (data: RecurringFormData) => {
     if (!user) return;
 
-    const submissionData = {
-        ...data,
-        category: data.type, // Map 'type' back to 'category' for Firestore
-        description: data.category
-    };
-
     if (editingTransaction) {
         const transRef = doc(firestore, 'users', user.uid, 'recurringTransactions', editingTransaction.id);
-        updateDocumentNonBlocking(transRef, submissionData);
+        updateDocumentNonBlocking(transRef, data);
         toast({
             title: "Transaction Updated!",
-            description: `Recurring transaction "${data.category}" has been updated.`,
+            description: `Recurring transaction "${data.description}" has been updated.`,
         });
     } else {
         addDocumentNonBlocking(collection(firestore, 'users', user.uid, 'recurringTransactions'), {
-            ...submissionData,
+            ...data,
             userId: user.uid,
         });
         toast({
             title: 'Transaction Added!',
-            description: `Recurring transaction "${data.category}" has been added.`,
+            description: `Recurring transaction "${data.description}" has been added.`,
         });
     }
     
@@ -267,10 +236,26 @@ export function RecurringList() {
                 onSubmit={form.handleSubmit(onSubmit)}
                 className="space-y-4"
               >
+                 <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Description</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="e.g., Office Rent, Client Retainer"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
-                    name="type"
+                    name="category"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Type</FormLabel>
@@ -294,38 +279,6 @@ export function RecurringList() {
                   />
                   <FormField
                     control={form.control}
-                    name="category"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Category</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          value={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a category" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {(type === 'Income'
-                              ? incomeCategories
-                              : expenseCategories
-                            ).map((cat) => (
-                              <SelectItem key={cat} value={cat}>
-                                {cat}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
                     name="amount"
                     render={({ field }) => (
                       <FormItem>
@@ -341,6 +294,8 @@ export function RecurringList() {
                       </FormItem>
                     )}
                   />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="frequency"
@@ -363,6 +318,22 @@ export function RecurringList() {
                             <SelectItem value="yearly">Yearly</SelectItem>
                           </SelectContent>
                         </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                   <FormField
+                    control={form.control}
+                    name="paymentMethod"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Payment Method</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="e.g., Bank Transfer"
+                            {...field}
+                          />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -398,22 +369,6 @@ export function RecurringList() {
                     )}
                   />
                 </div>
-                <FormField
-                  control={form.control}
-                  name="paymentMethod"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Payment Method</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="e.g., Bank Transfer"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
                 <DialogFooter>
                   <DialogClose asChild>
                     <Button type="button" variant="secondary">
