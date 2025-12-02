@@ -250,26 +250,25 @@ export function ReportGenerator() {
             formatPercent(data.percentage)
           ].join(',');
         };
-
+        
         const summaryRow = (title: string, data: { budgeted: number, actual: number, variance: number, percentage: number }) => row(title, data, true);
 
         csvContent = 'Budget vs Actual Variance\n';
         csvContent += `For ${format(startDate, 'MMMM yyyy')}\n\n`;
         csvContent += 'Title,Budget,Actual,Budget Variance,Percentage Variance\n';
 
-        const grossSales = getCategoryData('Sales', 'income');
-        // Assuming other income categories contribute to gross sales for simplicity
-        budget.income?.filter(c => c.name !== 'Sales').forEach(c => {
-          const data = getCategoryData(c.name, 'income');
-          grossSales.budgeted += data.budgeted;
-          grossSales.actual += data.actual;
+        const grossSalesData = { budgeted: 0, actual: 0, variance: 0, percentage: 0 };
+        (budget.income || []).forEach(cat => {
+            const data = getCategoryData(cat.name, 'income');
+            grossSalesData.budgeted += data.budgeted;
+            grossSalesData.actual += data.actual;
         });
-        grossSales.variance = grossSales.actual - grossSales.budgeted;
-        grossSales.percentage = grossSales.budgeted ? (grossSales.variance / grossSales.budgeted) * 100 : 0;
+        grossSalesData.variance = grossSalesData.actual - grossSalesData.budgeted;
+        grossSalesData.percentage = grossSalesData.budgeted ? (grossSalesData.variance / grossSalesData.budgeted) * 100 : 0;
         
-        csvContent += summaryRow('Gross Sales', grossSales) + '\n';
-        csvContent += 'Less: Discounts,$ -,$ -,$ -,\n'; // Placeholder
-        csvContent += summaryRow('Net Sales', grossSales) + '\n';
+        csvContent += summaryRow('Gross Sales', grossSalesData) + '\n';
+        csvContent += 'Less: Discounts,"$ -","$ -","$ -",\n'; // Placeholder
+        csvContent += summaryRow('Net Sales', grossSalesData) + '\n';
         
         const cogsCats = ['Cost of Goods Sold', 'Raw Material Cost', 'Manufacturing Cost', 'Labor Cost'];
         const cogsData = cogsCats.map(cat => getCategoryData(cat, 'expense'));
@@ -278,7 +277,7 @@ export function ReportGenerator() {
           acc.budgeted += data.budgeted;
           acc.actual += data.actual;
           return acc;
-        }, { budgeted: 0, actual: 0 });
+        }, { budgeted: 0, actual: 0, variance: 0, percentage: 0 });
         totalCogs.variance = totalCogs.budgeted - totalCogs.actual;
         totalCogs.percentage = totalCogs.budgeted ? (totalCogs.variance / totalCogs.budgeted) * 100 : 0;
 
@@ -288,9 +287,9 @@ export function ReportGenerator() {
         });
 
         const grossProfit = {
-          budgeted: grossSales.budgeted - totalCogs.budgeted,
-          actual: grossSales.actual - totalCogs.actual,
-          variance: (grossSales.actual - totalCogs.actual) - (grossSales.budgeted - totalCogs.budgeted),
+          budgeted: grossSalesData.budgeted - totalCogs.budgeted,
+          actual: grossSalesData.actual - totalCogs.actual,
+          variance: (grossSalesData.actual - totalCogs.actual) - (grossSalesData.budgeted - totalCogs.budgeted),
           percentage: 0
         };
         grossProfit.percentage = grossProfit.budgeted ? (grossProfit.variance / grossProfit.budgeted) * 100 : 0;
@@ -303,13 +302,19 @@ export function ReportGenerator() {
           acc.budgeted += data.budgeted;
           acc.actual += data.actual;
           return acc;
-        }, { budgeted: 0, actual: 0 });
+        }, { budgeted: 0, actual: 0, variance: 0, percentage: 0 });
         totalOverheads.variance = totalOverheads.budgeted - totalOverheads.actual;
         totalOverheads.percentage = totalOverheads.budgeted ? (totalOverheads.variance / totalOverheads.budgeted) * 100 : 0;
 
         csvContent += summaryRow('Less: Overheads', totalOverheads) + '\n';
         overheadsData.filter(d => d.budgeted > 0 || d.actual > 0).forEach(d => {
-            csvContent += row(d.name, d) + '\n';
+            if (d.name === 'Salaries and Wages') {
+                csvContent += row('Administrative Overheads', d) + '\n';
+            } else if (d.name === 'Marketing and Advertising') {
+                csvContent += row('Selling and Distribution Overheads', d) + '\n';
+            } else {
+                 csvContent += row(d.name, d) + '\n';
+            }
         });
         
         const netProfit = {
@@ -320,6 +325,7 @@ export function ReportGenerator() {
         };
         netProfit.percentage = netProfit.budgeted ? (netProfit.variance / netProfit.budgeted) * 100 : 0;
         csvContent += summaryRow('Net Profit', netProfit) + '\n';
+
 
       } else {
         // Fallback for other report types
