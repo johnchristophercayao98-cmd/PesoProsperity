@@ -102,6 +102,9 @@ function Calendar({
         },
       }}
       {...props}
+      captionLayout="dropdown-buttons"
+      fromYear={1960}
+      toYear={new Date().getFullYear() + 10}
     />
   )
 }
