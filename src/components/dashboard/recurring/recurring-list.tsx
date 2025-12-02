@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -282,7 +283,7 @@ export function RecurringList() {
               Add Recurring
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-md grid-rows-[auto,1fr,auto] max-h-[90vh]">
             <DialogHeader>
               <DialogTitle>{editingTransaction ? 'Edit' : 'Add'} Recurring Transaction</DialogTitle>
               <DialogDescription>
@@ -291,8 +292,9 @@ export function RecurringList() {
             </DialogHeader>
             <Form {...form}>
               <form
+                id="recurring-form"
                 onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-4"
+                className="grid gap-4 overflow-y-auto px-1"
               >
                  <FormField
                     control={form.control}
@@ -457,16 +459,16 @@ export function RecurringList() {
                     )}
                   />
                 </div>
-                <DialogFooter>
-                  <DialogClose asChild>
-                    <Button type="button" variant="secondary">
-                      Cancel
-                    </Button>
-                  </DialogClose>
-                  <Button type="submit">Save Transaction</Button>
-                </DialogFooter>
               </form>
             </Form>
+            <DialogFooter className="pt-4">
+              <DialogClose asChild>
+                <Button type="button" variant="secondary">
+                  Cancel
+                </Button>
+              </DialogClose>
+              <Button type="submit" form="recurring-form">Save Transaction</Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
