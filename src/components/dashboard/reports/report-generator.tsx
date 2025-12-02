@@ -446,14 +446,14 @@ export function ReportGenerator() {
         csvContent = headers + rows;
       }
 
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       if (link.download !== undefined) {
         const url = URL.createObjectURL(blob);
         link.setAttribute('href', url);
         link.setAttribute(
           'download',
-          `report-${reportType}-${Date.now()}.csv`
+          `report-${reportType}-${format(new Date(), 'yyyy-MM-dd')}.csv`
         );
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
