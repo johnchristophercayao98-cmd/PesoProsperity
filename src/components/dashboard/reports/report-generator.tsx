@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -31,8 +32,8 @@ import {
   getDocs,
   Timestamp,
 } from 'firebase/firestore';
-import { format, addDays, addWeeks, addMonths, addYears, isAfter, isBefore, isEqual, isWithinInterval, startOfDay, startOfMonth, endOfMonth } from 'date-fns';
-import type { Transaction, RecurringTransaction, Budget, BudgetCategory } from '@/lib/types';
+import { format, addDays, addWeeks, addMonths, addYears, isAfter, isBefore, isEqual, isWithinInterval, startOfDay, startOfMonth, endOfMonth, eachMonthOfInterval } from 'date-fns';
+import type { Transaction, RecurringTransaction, Budget, Debt } from '@/lib/types';
 
 const toDate = (date: any): Date | undefined => {
   if (!date) return undefined;
@@ -98,6 +99,8 @@ const generateTransactionInstances = (
   return instances;
 };
 
+const formatCurrencyForCSV = (value: number) => `"$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}"`;
+
 export function ReportGenerator() {
   const [reportType, setReportType] = useState<string>();
   const [startDate, setStartDate] = useState<Date>();
@@ -135,24 +138,32 @@ export function ReportGenerator() {
     try {
       // Common data fetching
       const singleTransactionsQuery = query(
-        collection(firestore, 'users', user.uid, 'expenses'),
-        where('date', '>=', startDate),
-        where('date', '<=', endDate)
+        collection(firestore, 'users', user.uid, 'expenses')
       );
       const recurringTransactionsQuery = query(collection(firestore, 'users', user.uid, 'recurringTransactions'));
+      const debtsQuery = query(collection(firestore, 'users', user.uid, 'debts'));
 
-      const singleSnapshot = await getDocs(singleTransactionsQuery);
+
+      const [singleSnapshot, recurringSnapshot, debtsSnapshot] = await Promise.all([
+        getDocs(singleTransactionsQuery),
+        getDocs(recurringTransactionsQuery),
+        getDocs(debtsQuery),
+      ]);
+      
       const singleTransactions = singleSnapshot.docs.map(
         (doc) => ({ ...doc.data(), id: doc.id } as Transaction)
       );
       
-      const recurringSnapshot = await getDocs(recurringTransactionsQuery);
       const recurringTransactions = recurringSnapshot.docs.map(
         (doc) => ({...doc.data(), id: doc.id } as RecurringTransaction)
       );
+      
+      const debts = debtsSnapshot.docs.map(
+        (doc) => ({...doc.data(), id: doc.id } as Debt)
+      );
 
-      const recurringInstances = generateTransactionInstances(recurringTransactions, startDate, endDate);
-      const allTransactions = [...singleTransactions, ...recurringInstances];
+      const allRecurringInstances = generateTransactionInstances(recurringTransactions, new Date(0), endDate);
+      const allTransactions = [...singleTransactions, ...allRecurringInstances];
 
 
       if (allTransactions.length === 0 && reportType !== 'budget-variance') {
@@ -169,10 +180,21 @@ export function ReportGenerator() {
 
       let csvContent = '';
       if (reportType === 'income-vs-expense') {
+        const transactionsInRange = allTransactions.filter(t => {
+            const tDate = toDate(t.date);
+            return tDate && isWithinInterval(tDate, { start: startDate, end: endDate });
+        });
+
+        if (transactionsInRange.length === 0) {
+            toast({ variant: 'destructive', title: 'No Data', description: 'No transactions found in the selected range.' });
+            setIsGenerating(false);
+            return;
+        }
+
         let totalIncome = 0;
         let totalExpense = 0;
         
-        const dataRows = allTransactions.map(t => {
+        const dataRows = transactionsInRange.map(t => {
             const date = toDate(t.date);
             if (t.category === 'Income') {
                 totalIncome += t.amount;
@@ -220,7 +242,6 @@ export function ReportGenerator() {
         }
         const budget = budgetSnapshot.docs[0].data() as Budget;
 
-        // Transactions for the budget month
         const monthlyTransactions = allTransactions.filter(t => {
             const tDate = toDate(t.date);
             return tDate && isWithinInterval(tDate, { start: monthStartForBudget, end: monthEndForBudget });
@@ -237,16 +258,14 @@ export function ReportGenerator() {
           return { name, budgeted, actual, variance, percentage };
         };
 
-        const formatCurrency = (value: number) => `"$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}"`;
         const formatPercent = (value: number) => `"${value.toFixed(2)}%"`;
-
         const row = (title: string, data: { budgeted: number, actual: number, variance: number, percentage: number }, bold = false) => {
           const titleStr = bold ? `"${title}"` : `  ${title}`;
           return [
             titleStr,
-            formatCurrency(data.budgeted),
-            formatCurrency(data.actual),
-            formatCurrency(data.variance),
+            formatCurrencyForCSV(data.budgeted),
+            formatCurrencyForCSV(data.actual),
+            formatCurrencyForCSV(data.variance),
             formatPercent(data.percentage)
           ].join(',');
         };
@@ -257,20 +276,22 @@ export function ReportGenerator() {
         csvContent += `For ${format(startDate, 'MMMM yyyy')}\n\n`;
         csvContent += 'Title,Budget,Actual,Budget Variance,Percentage Variance\n';
 
-        const grossSalesData = { budgeted: 0, actual: 0, variance: 0, percentage: 0 };
-        (budget.income || []).forEach(cat => {
-            const data = getCategoryData(cat.name, 'income');
-            grossSalesData.budgeted += data.budgeted;
-            grossSalesData.actual += data.actual;
+        const incomeCategories = budget.income?.map(c => c.name) || [];
+        const incomeData = incomeCategories.map(cat => getCategoryData(cat, 'income'));
+        const totalIncome = incomeData.reduce((acc, data) => {
+            acc.budgeted += data.budgeted;
+            acc.actual += data.actual;
+            return acc;
+        }, { budgeted: 0, actual: 0, variance: 0, percentage: 0 });
+        totalIncome.variance = totalIncome.actual - totalIncome.budgeted;
+        totalIncome.percentage = totalIncome.budgeted ? (totalIncome.variance / totalIncome.budgeted) * 100 : 0;
+        
+        csvContent += summaryRow('Net Sales', totalIncome) + '\n';
+        incomeData.filter(d => d.budgeted > 0 || d.actual > 0).forEach(d => {
+            csvContent += row(d.name, d) + '\n';
         });
-        grossSalesData.variance = grossSalesData.actual - grossSalesData.budgeted;
-        grossSalesData.percentage = grossSalesData.budgeted ? (grossSalesData.variance / grossSalesData.budgeted) * 100 : 0;
-        
-        csvContent += summaryRow('Gross Sales', grossSalesData) + '\n';
-        csvContent += 'Less: Discounts,"$ -","$ -","$ -",\n'; // Placeholder
-        csvContent += summaryRow('Net Sales', grossSalesData) + '\n';
-        
-        const cogsCats = ['Cost of Goods Sold', 'Raw Material Cost', 'Manufacturing Cost', 'Labor Cost'];
+
+        const cogsCats = ['Cost of Goods Sold'];
         const cogsData = cogsCats.map(cat => getCategoryData(cat, 'expense'));
         
         const totalCogs = cogsData.reduce((acc, data) => {
@@ -287,9 +308,9 @@ export function ReportGenerator() {
         });
 
         const grossProfit = {
-          budgeted: grossSalesData.budgeted - totalCogs.budgeted,
-          actual: grossSalesData.actual - totalCogs.actual,
-          variance: (grossSalesData.actual - totalCogs.actual) - (grossSalesData.budgeted - totalCogs.budgeted),
+          budgeted: totalIncome.budgeted - totalCogs.budgeted,
+          actual: totalIncome.actual - totalCogs.actual,
+          variance: (totalIncome.actual - totalCogs.actual) - (totalIncome.budgeted - totalCogs.budgeted),
           percentage: 0
         };
         grossProfit.percentage = grossProfit.budgeted ? (grossProfit.variance / grossProfit.budgeted) * 100 : 0;
@@ -308,13 +329,7 @@ export function ReportGenerator() {
 
         csvContent += summaryRow('Less: Overheads', totalOverheads) + '\n';
         overheadsData.filter(d => d.budgeted > 0 || d.actual > 0).forEach(d => {
-            if (d.name === 'Salaries and Wages') {
-                csvContent += row('Administrative Overheads', d) + '\n';
-            } else if (d.name === 'Marketing and Advertising') {
-                csvContent += row('Selling and Distribution Overheads', d) + '\n';
-            } else {
-                 csvContent += row(d.name, d) + '\n';
-            }
+            csvContent += row(d.name, d) + '\n';
         });
         
         const netProfit = {
@@ -325,7 +340,85 @@ export function ReportGenerator() {
         };
         netProfit.percentage = netProfit.budgeted ? (netProfit.variance / netProfit.budgeted) * 100 : 0;
         csvContent += summaryRow('Net Profit', netProfit) + '\n';
+      
+      } else if (reportType === 'cash-flow-statement') {
+        const months = eachMonthOfInterval({ start: startDate, end: endDate });
+        const monthHeaders = months.map(m => format(m, 'MMM yyyy')).join(',');
+        
+        csvContent = `Cash Flow Statement\n`;
+        csvContent += `For period ${format(startDate, 'd MMM yyyy')} to ${format(endDate, 'd MMM yyyy')}\n\n`;
+        csvContent += `Category,${monthHeaders}\n`;
 
+        // Calculate beginning balance
+        const openingBalance = allTransactions
+            .filter(t => {
+                const tDate = toDate(t.date);
+                return tDate && isBefore(tDate, startDate);
+            })
+            .reduce((acc, t) => acc + (t.category === 'Income' ? t.amount : -t.amount), 0);
+
+        let runningBalance = openingBalance;
+
+        const monthlyData = months.map(month => {
+            const monthStart = startOfMonth(month);
+            const monthEnd = endOfMonth(month);
+            
+            const transactionsThisMonth = allTransactions.filter(t => {
+                const tDate = toDate(t.date);
+                return tDate && isWithinInterval(tDate, { start: monthStart, end: monthEnd });
+            });
+
+            const salesRevenue = transactionsThisMonth.filter(t => t.subcategory === 'Sales').reduce((sum, t) => sum + t.amount, 0);
+            // Assuming loans are recorded as transactions with a specific description/category. For now, let's use 'Other' income.
+            const loansReceived = transactionsThisMonth.filter(t => t.subcategory === 'Other' && t.category === 'Income').reduce((sum, t) => sum + t.amount, 0);
+            const interestReceived = transactionsThisMonth.filter(t => t.subcategory === 'Interest Income').reduce((sum, t) => sum + t.amount, 0);
+            const totalInflow = salesRevenue + loansReceived + interestReceived;
+
+            const purchases = transactionsThisMonth.filter(t => t.subcategory === 'Cost of Goods Sold').reduce((sum, t) => sum + t.amount, 0);
+            const salaries = transactionsThisMonth.filter(t => t.subcategory === 'Salaries and Wages').reduce((sum, t) => sum + t.amount, 0);
+            const rent = transactionsThisMonth.filter(t => t.subcategory === 'Rent').reduce((sum, t) => sum + t.amount, 0);
+            const utilities = transactionsThisMonth.filter(t => t.subcategory === 'Utilities').reduce((sum, t) => sum + t.amount, 0);
+            const advertising = transactionsThisMonth.filter(t => t.subcategory === 'Marketing and Advertising').reduce((sum, t) => sum + t.amount, 0);
+            // Loan repayments need to be identified, assuming they are 'Other' expenses for now
+            const loanRepayments = transactionsThisMonth.filter(t => t.subcategory === 'Other' && t.category === 'Expense' && t.description.toLowerCase().includes('loan')).reduce((sum, t) => sum + t.amount, 0);
+            const interestPayments = 0; // Not tracked currently
+            const totalOutflow = purchases + salaries + rent + utilities + advertising + loanRepayments + interestPayments;
+
+            const netCashFlow = totalInflow - totalOutflow;
+            const currentMonthOpening = runningBalance;
+            const closingBalance = currentMonthOpening + netCashFlow;
+            runningBalance = closingBalance;
+
+            return {
+                salesRevenue, loansReceived, interestReceived, totalInflow,
+                purchases, salaries, rent, utilities, advertising, loanRepayments, interestPayments, totalOutflow,
+                netCashFlow, openingBalance: currentMonthOpening, closingBalance
+            };
+        });
+
+        const rows: { [key: string]: string[] } = {
+          'Cash inflow': [],
+          'Sales revenue': monthlyData.map(d => formatCurrencyForCSV(d.salesRevenue)),
+          'Loans received': monthlyData.map(d => formatCurrencyForCSV(d.loansReceived)),
+          'Interest received': monthlyData.map(d => formatCurrencyForCSV(d.interestReceived)),
+          'Total cash inflow': monthlyData.map(d => formatCurrencyForCSV(d.totalInflow)),
+          'Cash outflow': [],
+          'Purchases': monthlyData.map(d => formatCurrencyForCSV(d.purchases)),
+          'Salaries': monthlyData.map(d => formatCurrencyForCSV(d.salaries)),
+          'Rent': monthlyData.map(d => formatCurrencyForCSV(d.rent)),
+          'Utilities': monthlyData.map(d => formatCurrencyForCSV(d.utilities)),
+          'Advertising': monthlyData.map(d => formatCurrencyForCSV(d.advertising)),
+          'Loan repayments': monthlyData.map(d => formatCurrencyForCSV(d.loanRepayments)),
+          'Interest payments': monthlyData.map(d => formatCurrencyForCSV(d.interestPayments)),
+          'Total cash outflow': monthlyData.map(d => formatCurrencyForCSV(d.totalOutflow)),
+          'Net cash flow': monthlyData.map(d => formatCurrencyForCSV(d.netCashFlow)),
+          'Opening balance': monthlyData.map(d => formatCurrencyForCSV(d.openingBalance)),
+          'Closing balance': monthlyData.map(d => formatCurrencyForCSV(d.closingBalance)),
+        };
+
+        for (const [title, values] of Object.entries(rows)) {
+            csvContent += `"${title}",${values.join(',')}\n`;
+        }
 
       } else {
         // Fallback for other report types
