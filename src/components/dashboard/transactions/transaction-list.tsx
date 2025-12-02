@@ -1,7 +1,17 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import type { Transaction } from '@/lib/types';
+import type { Transaction, RecurringTransaction } from '@/lib/types';
+import {
+  addDays,
+  addWeeks,
+  addMonths,
+  addYears,
+  isAfter,
+  isBefore,
+  isEqual,
+  startOfDay,
+} from 'date-fns';
 import {
   Card,
   CardContent,
@@ -66,7 +76,7 @@ import {
   updateDocumentNonBlocking,
   deleteDocumentNonBlocking,
 } from '@/firebase';
-import { collection, doc, Timestamp } from 'firebase/firestore';
+import { collection, doc, Timestamp, query } from 'firebase/firestore';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 const transactionSchema = z.object({
@@ -102,21 +112,101 @@ const expenseCategories = [
   'Other',
 ];
 
+const toDate = (date: any): Date | undefined => {
+    if (!date) return undefined;
+    if (date instanceof Date) return date;
+    if (date instanceof Timestamp) return date.toDate();
+    if (typeof date === 'string' || typeof date === 'number') {
+        const parsedDate = new Date(date);
+        if (!isNaN(parsedDate.getTime())) {
+            return parsedDate;
+        }
+    }
+    return undefined;
+};
+
+const generateTransactionInstances = (
+  recurringTxs: RecurringTransaction[]
+): Transaction[] => {
+  const instances: Transaction[] = [];
+  const today = startOfDay(new Date());
+
+  recurringTxs.forEach((rt) => {
+    const startDate = toDate(rt.startDate);
+    if (!startDate) return;
+
+    let currentDate = startDate;
+    const endDate = toDate(rt.endDate);
+
+    while (isBefore(currentDate, today) || isEqual(currentDate, today)) {
+      if (endDate && isAfter(currentDate, endDate)) {
+        break;
+      }
+
+      instances.push({
+        ...rt,
+        id: `${rt.id}-${currentDate.toISOString()}`,
+        date: currentDate,
+        description: `${rt.description} (Recurring)`,
+      });
+
+      switch (rt.frequency) {
+        case 'daily':
+          currentDate = addDays(currentDate, 1);
+          break;
+        case 'weekly':
+          currentDate = addWeeks(currentDate, 1);
+          break;
+        case 'monthly':
+          currentDate = addMonths(currentDate, 1);
+          break;
+        case 'yearly':
+          currentDate = addYears(currentDate, 1);
+          break;
+        default:
+          return;
+      }
+    }
+  });
+  return instances;
+};
+
 export function TransactionList() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingTransaction, setEditingTransaction] =
-    useState<Transaction | null>(null);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
   const { toast } = useToast();
   const firestore = useFirestore();
   const { user } = useUser();
 
-  const transactionsQuery = useMemoFirebase(() => {
+  const singleTransactionsQuery = useMemoFirebase(() => {
     if (!user) return null;
-    return collection(firestore, 'users', user.uid, 'expenses');
+    return query(collection(firestore, 'users', user.uid, 'expenses'));
   }, [firestore, user]);
 
-  const { data: transactions, isLoading: isLoadingTransactions } = useCollection<Transaction>(transactionsQuery);
+  const recurringTransactionsQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(collection(firestore, 'users', user.uid, 'recurringTransactions'));
+  }, [firestore, user]);
+
+  const { data: singleTransactions, isLoading: isLoadingSingle } = useCollection<Transaction>(singleTransactionsQuery);
+  const { data: recurringTransactions, isLoading: isLoadingRecurring } = useCollection<RecurringTransaction>(recurringTransactionsQuery);
+
+  const allTransactions = useMemo(() => {
+    if (!singleTransactions || !recurringTransactions) return [];
+
+    const recurringInstances = generateTransactionInstances(recurringTransactions);
+    
+    const combined = [...singleTransactions, ...recurringInstances];
+
+    return combined.sort((a, b) => {
+        const dateA = toDate(a.date)?.getTime() || 0;
+        const dateB = toDate(b.date)?.getTime() || 0;
+        return dateB - dateA;
+    });
+  }, [singleTransactions, recurringTransactions]);
+
+  const isLoadingTransactions = isLoadingSingle || isLoadingRecurring;
 
   const form = useForm<TransactionFormData>({
     resolver: zodResolver(transactionSchema),
@@ -131,19 +221,6 @@ export function TransactionList() {
   });
 
   const category = form.watch('category');
-  
-  const toDate = (date: any): Date | undefined => {
-    if (!date) return undefined;
-    if (date instanceof Date) return date;
-    if (date instanceof Timestamp) return date.toDate();
-    if (typeof date === 'string' || typeof date === 'number') {
-        const parsedDate = new Date(date);
-        if (!isNaN(parsedDate.getTime())) {
-            return parsedDate;
-        }
-    }
-    return undefined;
-  }
 
   const handleDialogOpenChange = (open: boolean) => {
     setIsDialogOpen(open);
@@ -154,6 +231,15 @@ export function TransactionList() {
   };
 
   const handleEdit = (transaction: Transaction) => {
+    // We can only edit non-recurring transactions through this UI
+    if (transaction.description.includes('(Recurring)')) {
+        toast({
+            variant: "destructive",
+            title: "Cannot Edit Recurring Transaction",
+            description: "Please edit the recurring transaction from the Recurring Transactions page."
+        })
+        return;
+    }
     setEditingTransaction(transaction);
     form.reset({
       ...transaction,
@@ -164,6 +250,16 @@ export function TransactionList() {
 
   const handleDelete = () => {
     if (!transactionToDelete || !user) return;
+     // We can only delete non-recurring transactions through this UI
+    if (transactionToDelete.description.includes('(Recurring)')) {
+        toast({
+            variant: "destructive",
+            title: "Cannot Delete Recurring Transaction",
+            description: "Please delete the recurring transaction from the Recurring Transactions page."
+        })
+        setTransactionToDelete(null);
+        return;
+    }
     const transactionRef = doc(firestore, 'users', user.uid, 'expenses', transactionToDelete.id);
     deleteDocumentNonBlocking(transactionRef);
     toast({
@@ -234,7 +330,7 @@ export function TransactionList() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {transactions && transactions.map((t) => {
+              {allTransactions && allTransactions.map((t) => {
                 const transactionDate = toDate(t.date);
                 return (
                 <TableRow key={t.id}>
