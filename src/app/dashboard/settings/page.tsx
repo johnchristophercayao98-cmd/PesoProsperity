@@ -163,6 +163,25 @@ export default function SettingsPage() {
         }
     }
 
+    const handlePaste = (event: React.ClipboardEvent<HTMLDivElement>) => {
+        const items = event.clipboardData.items;
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf('image') !== -1) {
+                const file = items[i].getAsFile();
+                if (file) {
+                    const dataTransfer = new DataTransfer();
+                    dataTransfer.items.add(file);
+                    photoForm.setValue('photo', dataTransfer.files);
+                    toast({
+                        title: 'Image Pasted!',
+                        description: 'The image has been added and is ready to be saved.',
+                    });
+                }
+                break;
+            }
+        }
+    };
+
 
     if (isUserLoading) {
         return (
@@ -268,11 +287,11 @@ export default function SettingsPage() {
             </div>
 
             <Dialog open={isPhotoDialogOpen} onOpenChange={setIsPhotoDialogOpen}>
-                <DialogContent>
+                <DialogContent onPaste={handlePaste}>
                     <DialogHeader>
                         <DialogTitle>Change Profile Picture</DialogTitle>
                         <DialogDescription>
-                            Upload a new image to update your avatar.
+                            Upload a new image to update your avatar. You can also paste an image from your clipboard.
                         </DialogDescription>
                     </DialogHeader>
                     <Form {...photoForm}>
@@ -308,3 +327,5 @@ export default function SettingsPage() {
         </div>
     )
 }
+
+    
