@@ -3,7 +3,7 @@
 
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button, Form, FormControl, FormField, FormItem, FormLabel, FormMessage, Input, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, Avatar, AvatarImage, AvatarFallback } from "@/components/ui";
-import { useAuth, useFirestore, useUser, updateDocumentNonBlocking, useStorage } from "@/firebase";
+import { useAuth, useFirestore, useUser, updateDocumentNonBlocking, useStorage, useDoc, useMemoFirebase } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { updateProfile } from "firebase/auth";
@@ -16,8 +16,8 @@ import { z } from "zod";
 
 
 const profileSchema = z.object({
-    firstName: z.string().min(2, 'First name is required.'),
-    lastName: z.string().min(2, 'Last name is required.'),
+    firstName: z.string().min(1, 'First name is required.'),
+    lastName: z.string().min(1, 'Last name is required.'),
     email: z.string().email(),
 });
 
@@ -47,7 +47,13 @@ export default function SettingsPage() {
     const { toast } = useToast();
     const [isSaving, setIsSaving] = useState(false);
     const [isPhotoDialogOpen, setIsPhotoDialogOpen] = useState(false);
-    const fileInputRef = useRef<HTMLInputElement>(null);
+    
+    const userDocRef = useMemoFirebase(() => {
+        if (!user) return null;
+        return doc(firestore, 'users', user.uid);
+    }, [firestore, user]);
+
+    const { data: userProfile, isLoading: isProfileLoading } = useDoc(userDocRef);
 
     const profileForm = useForm<ProfileFormValues>({
         resolver: zodResolver(profileSchema),
@@ -63,17 +69,27 @@ export default function SettingsPage() {
     });
 
     useEffect(() => {
-        if (user && !isUserLoading) {
+        if (userProfile && !isProfileLoading) {
             profileForm.reset({
+                firstName: userProfile.firstName || '',
+                lastName: userProfile.lastName || '',
+                email: userProfile.email || '',
+            });
+        } else if (user && !isUserLoading) {
+            // Fallback for when firestore doc might be loading slower
+             profileForm.reset({
                 firstName: user.displayName?.split(' ')[0] || '',
                 lastName: user.displayName?.split(' ').slice(1).join(' ') || '',
                 email: user.email || '',
             });
         }
-    }, [user, isUserLoading, profileForm]);
+    }, [user, userProfile, isUserLoading, isProfileLoading, profileForm]);
 
     const getAvatarFallback = () => {
         if (user?.isAnonymous) return "G";
+        if (profileForm.getValues('firstName') && profileForm.getValues('lastName')) {
+             return `${profileForm.getValues('firstName')[0]}${profileForm.getValues('lastName')[0]}`;
+        }
         if (user?.displayName) {
             const nameParts = user.displayName.split(' ');
             const firstNameInitial = nameParts[0] ? nameParts[0][0] : '';
@@ -182,7 +198,7 @@ export default function SettingsPage() {
     };
 
 
-    if (isUserLoading) {
+    if (isUserLoading || isProfileLoading) {
         return (
             <div className="flex items-center justify-center p-8">
                 <Loader2 className="mr-2 h-8 w-8 animate-spin" />
@@ -326,3 +342,5 @@ export default function SettingsPage() {
         </div>
     )
 }
+
+    
