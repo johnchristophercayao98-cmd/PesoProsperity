@@ -11,6 +11,7 @@ import {
   Notebook,
   PieChart,
   Repeat,
+  Settings,
   TrendingUp,
   Waves,
   ChevronDown,
@@ -72,6 +73,11 @@ const navItems = [
     href: '/dashboard/reports',
     label: 'Reports',
     icon: PieChart,
+  },
+  {
+    href: '/dashboard/settings',
+    label: 'Settings',
+    icon: Settings,
   },
 ];
 
