@@ -76,7 +76,9 @@ export default function SettingsPage() {
         if (user?.isAnonymous) return "G";
         if (user?.displayName) {
             const nameParts = user.displayName.split(' ');
-            return nameParts[0][0] + (nameParts.length > 1 ? nameParts[1][0] : '');
+            const firstNameInitial = nameParts[0] ? nameParts[0][0] : '';
+            const lastNameInitial = nameParts.length > 1 && nameParts[1] ? nameParts[1][0] : '';
+            return `${firstNameInitial}${lastNameInitial}`;
         }
         return "??";
     }
@@ -134,10 +136,12 @@ export default function SettingsPage() {
             const downloadURL = await getDownloadURL(uploadResult.ref);
 
             await updateProfile(auth.currentUser!, { photoURL: downloadURL });
-            await auth.currentUser.reload();
             
             const userDocRef = doc(firestore, 'users', user.uid);
             updateDocumentNonBlocking(userDocRef, { photoURL: downloadURL });
+            
+            // Force a reload of the user object to reflect the new photoURL instantly
+            await auth.currentUser.reload();
             
             toast({
                 title: 'Profile Picture Updated',
