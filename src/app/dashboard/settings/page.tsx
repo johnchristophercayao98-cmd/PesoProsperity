@@ -92,6 +92,9 @@ export default function SettingsPage() {
             await updateProfile(auth.currentUser, {
                 displayName: `${data.firstName} ${data.lastName}`,
             });
+            
+            // This will trigger the onAuthStateChanged listener and update the user object everywhere
+            await auth.currentUser.reload(); 
 
             const userDocRef = doc(firestore, 'users', user.uid);
             updateDocumentNonBlocking(userDocRef, {
@@ -131,6 +134,8 @@ export default function SettingsPage() {
             const downloadURL = await getDownloadURL(uploadResult.ref);
 
             await updateProfile(auth.currentUser!, { photoURL: downloadURL });
+            await auth.currentUser.reload();
+            
             const userDocRef = doc(firestore, 'users', user.uid);
             updateDocumentNonBlocking(userDocRef, { photoURL: downloadURL });
             
