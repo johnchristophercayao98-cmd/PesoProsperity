@@ -1,6 +1,7 @@
 
 'use client';
 import { usePathname, useRouter } from 'next/navigation';
+import { useState } from 'react';
 import {
   SidebarTrigger,
   useSidebar,
@@ -20,6 +21,7 @@ import { useAuth } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/firebase/provider';
+import { SupportDialog } from './support-dialog';
 
 export function Header() {
   const { isMobile } = useSidebar();
@@ -28,6 +30,8 @@ export function Header() {
   const router = useRouter();
   const { toast } = useToast();
   const { user } = useUser();
+  const [isSupportDialogOpen, setIsSupportDialogOpen] = useState(false);
+
 
   const handleLogout = async () => {
     try {
@@ -66,44 +70,47 @@ export function Header() {
   }
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/80 backdrop-blur-sm px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
-      {isMobile && <SidebarTrigger />}
-      
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        {breadcrumbs.map((crumb, index) => (
-          <div key={crumb.href} className="flex items-center gap-2">
-            {index > 0 && <span>/</span>}
-            <Link href={crumb.href} className="hover:text-foreground transition-colors">
-              {crumb.label}
-            </Link>
-          </div>
-        ))}
-      </div>
+    <>
+      <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/80 backdrop-blur-sm px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
+        {isMobile && <SidebarTrigger />}
+        
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          {breadcrumbs.map((crumb, index) => (
+            <div key={crumb.href} className="flex items-center gap-2">
+              {index > 0 && <span>/</span>}
+              <Link href={crumb.href} className="hover:text-foreground transition-colors">
+                {crumb.label}
+              </Link>
+            </div>
+          ))}
+        </div>
 
-      <div className="ml-auto flex items-center gap-4">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-              <Avatar className="h-9 w-9">
-                <AvatarImage src={user?.photoURL ?? undefined} alt="User Avatar" />
-                <AvatarFallback>{getAvatarFallback()}</AvatarFallback>
-              </Avatar>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>{user?.isAnonymous ? 'Guest Account' : user?.email}</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link href="/dashboard/settings">Settings</Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <a href="mailto:support@pesoprosperity.com">Support</a>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleLogout}>Logout</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    </header>
+        <div className="ml-auto flex items-center gap-4">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                <Avatar className="h-9 w-9">
+                  <AvatarImage src={user?.photoURL ?? undefined} alt="User Avatar" />
+                  <AvatarFallback>{getAvatarFallback()}</AvatarFallback>
+                </Avatar>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>{user?.isAnonymous ? 'Guest Account' : user?.email}</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link href="/dashboard/settings">Settings</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setIsSupportDialogOpen(true)}>
+                Support
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleLogout}>Logout</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </header>
+      <SupportDialog open={isSupportDialogOpen} onOpenChange={setIsSupportDialogOpen} />
+    </>
   );
 }
