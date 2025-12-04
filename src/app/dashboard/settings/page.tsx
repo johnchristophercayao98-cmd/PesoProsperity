@@ -361,7 +361,5 @@ export default function SettingsPage() {
             </Dialog>
         </div>
     )
-}
 
-    
     
