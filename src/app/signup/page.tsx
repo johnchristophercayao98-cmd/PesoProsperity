@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -54,6 +55,7 @@ export default function SignupPage() {
         email: data.email,
         firstName: data.firstName,
         lastName: data.lastName,
+        photoURL: user.photoURL,
       });
 
       toast({ title: 'Account Created Successfully!' });
