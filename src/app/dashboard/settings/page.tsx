@@ -3,11 +3,12 @@
 
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button, Form, FormControl, FormField, FormItem, FormLabel, FormMessage, Input, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, Avatar, AvatarImage, AvatarFallback } from "@/components/ui";
-import { useAuth, useFirestore, useUser, updateDocumentNonBlocking } from "@/firebase";
+import { useAuth, useFirestore, useUser, updateDocumentNonBlocking, useStorage } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { updateProfile } from "firebase/auth";
 import { doc } from "firebase/firestore";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { Loader2, Camera } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { useForm } from "react-hook-form";
@@ -42,6 +43,7 @@ export default function SettingsPage() {
     const { user, isUserLoading } = useUser();
     const auth = useAuth();
     const firestore = useFirestore();
+    const storage = useStorage();
     const { toast } = useToast();
     const [isSaving, setIsSaving] = useState(false);
     const [isPhotoDialogOpen, setIsPhotoDialogOpen] = useState(false);
@@ -122,43 +124,31 @@ export default function SettingsPage() {
         setIsSaving(true);
         try {
             const file = data.photo[0];
-            const reader = new FileReader();
+            const filePath = `user-avatars/${user.uid}/${file.name}`;
+            const storageRef = ref(storage, filePath);
             
-            reader.onloadend = async () => {
-                const dataUrl = reader.result as string;
-                
-                try {
-                    await updateProfile(auth.currentUser!, { photoURL: dataUrl });
-                    const userDocRef = doc(firestore, 'users', user.uid);
-                    updateDocumentNonBlocking(userDocRef, { photoURL: dataUrl });
-                    
-                    toast({
-                        title: 'Profile Picture Updated',
-                        description: 'Your new avatar has been saved.',
-                    });
+            const uploadResult = await uploadBytes(storageRef, file);
+            const downloadURL = await getDownloadURL(uploadResult.ref);
 
-                    setIsPhotoDialogOpen(false);
-                    photoForm.reset();
-
-                } catch (error: any) {
-                     toast({
-                        variant: 'destructive',
-                        title: 'Update Failed',
-                        description: error.message || 'An unexpected error occurred.',
-                    });
-                } finally {
-                    setIsSaving(false);
-                }
-            };
+            await updateProfile(auth.currentUser!, { photoURL: downloadURL });
+            const userDocRef = doc(firestore, 'users', user.uid);
+            updateDocumentNonBlocking(userDocRef, { photoURL: downloadURL });
             
-            reader.readAsDataURL(file);
+            toast({
+                title: 'Profile Picture Updated',
+                description: 'Your new avatar has been saved.',
+            });
+
+            setIsPhotoDialogOpen(false);
+            photoForm.reset();
 
         } catch (error: any) {
              toast({
                 variant: 'destructive',
-                title: 'File Read Error',
-                description: 'Could not read the selected file.',
+                title: 'Update Failed',
+                description: error.message || 'Could not upload image.',
             });
+        } finally {
             setIsSaving(false);
         }
     }
@@ -327,5 +317,3 @@ export default function SettingsPage() {
         </div>
     )
 }
-
-    
