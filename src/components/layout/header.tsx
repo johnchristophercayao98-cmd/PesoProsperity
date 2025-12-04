@@ -1,3 +1,4 @@
+
 'use client';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -14,7 +15,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
 import Link from 'next/link';
 import { useAuth } from '@/firebase';
 import { signOut } from 'firebase/auth';
@@ -24,7 +24,6 @@ import { useUser } from '@/firebase/provider';
 export function Header() {
   const { isMobile } = useSidebar();
   const pathname = usePathname();
-  const userAvatar = PlaceHolderImages.find((img) => img.id === 'user-avatar');
   const auth = useAuth();
   const router = useRouter();
   const { toast } = useToast();
@@ -86,7 +85,7 @@ export function Header() {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="relative h-8 w-8 rounded-full">
               <Avatar className="h-9 w-9">
-                {userAvatar && !user?.isAnonymous && <AvatarImage src={userAvatar.imageUrl} alt="User Avatar" data-ai-hint={userAvatar.imageHint}/>}
+                <AvatarImage src={user?.photoURL ?? undefined} alt="User Avatar" />
                 <AvatarFallback>{getAvatarFallback()}</AvatarFallback>
               </Avatar>
             </Button>

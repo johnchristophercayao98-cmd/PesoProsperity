@@ -274,6 +274,10 @@
         "lastName": {
           "type": "string",
           "description": "Last name of the user."
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "URL of the user's profile picture."
         }
       },
       "required": [
