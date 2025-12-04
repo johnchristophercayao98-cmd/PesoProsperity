@@ -9,7 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { updateProfile } from "firebase/auth";
 import { doc } from "firebase/firestore";
 import { Loader2, Camera } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -22,8 +22,18 @@ const profileSchema = z.object({
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+
 const photoSchema = z.object({
-    photoURL: z.string().url("Please enter a valid image URL.").optional().or(z.literal('')),
+    photo: z
+        .any()
+        .refine((files) => files?.length == 1, "Image is required.")
+        .refine((files) => files?.[0]?.size <= MAX_FILE_SIZE, `Max file size is 5MB.`)
+        .refine(
+            (files) => ACCEPTED_IMAGE_TYPES.includes(files?.[0]?.type),
+            ".jpg, .jpeg, .png and .webp files are accepted."
+        ),
 })
 type PhotoFormValues = z.infer<typeof photoSchema>;
 
@@ -35,6 +45,7 @@ export default function SettingsPage() {
     const { toast } = useToast();
     const [isSaving, setIsSaving] = useState(false);
     const [isPhotoDialogOpen, setIsPhotoDialogOpen] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const profileForm = useForm<ProfileFormValues>({
         resolver: zodResolver(profileSchema),
@@ -47,9 +58,6 @@ export default function SettingsPage() {
 
      const photoForm = useForm<PhotoFormValues>({
         resolver: zodResolver(photoSchema),
-        defaultValues: {
-            photoURL: '',
-        }
     });
 
     useEffect(() => {
@@ -59,11 +67,8 @@ export default function SettingsPage() {
                 lastName: user.displayName?.split(' ').slice(1).join(' ') || '',
                 email: user.email || '',
             });
-            photoForm.reset({
-                photoURL: user.photoURL || '',
-            })
         }
-    }, [user, isUserLoading, profileForm, photoForm]);
+    }, [user, isUserLoading, profileForm]);
 
     const getAvatarFallback = () => {
         if (user?.isAnonymous) return "G";
@@ -116,21 +121,44 @@ export default function SettingsPage() {
 
         setIsSaving(true);
         try {
-            await updateProfile(auth.currentUser, { photoURL: data.photoURL });
-            const userDocRef = doc(firestore, 'users', user.uid);
-            updateDocumentNonBlocking(userDocRef, { photoURL: data.photoURL });
-            toast({
-                title: 'Profile Picture Updated',
-                description: 'Your new avatar has been saved.',
-            });
-            setIsPhotoDialogOpen(false);
+            const file = data.photo[0];
+            const reader = new FileReader();
+            
+            reader.onloadend = async () => {
+                const dataUrl = reader.result as string;
+                
+                try {
+                    await updateProfile(auth.currentUser!, { photoURL: dataUrl });
+                    const userDocRef = doc(firestore, 'users', user.uid);
+                    updateDocumentNonBlocking(userDocRef, { photoURL: dataUrl });
+                    
+                    toast({
+                        title: 'Profile Picture Updated',
+                        description: 'Your new avatar has been saved.',
+                    });
+
+                    setIsPhotoDialogOpen(false);
+                    photoForm.reset();
+
+                } catch (error: any) {
+                     toast({
+                        variant: 'destructive',
+                        title: 'Update Failed',
+                        description: error.message || 'An unexpected error occurred.',
+                    });
+                } finally {
+                    setIsSaving(false);
+                }
+            };
+            
+            reader.readAsDataURL(file);
+
         } catch (error: any) {
              toast({
                 variant: 'destructive',
-                title: 'Update Failed',
-                description: error.message || 'An unexpected error occurred.',
+                title: 'File Read Error',
+                description: 'Could not read the selected file.',
             });
-        } finally {
             setIsSaving(false);
         }
     }
@@ -244,19 +272,23 @@ export default function SettingsPage() {
                     <DialogHeader>
                         <DialogTitle>Change Profile Picture</DialogTitle>
                         <DialogDescription>
-                            Update your avatar by providing a new image URL.
+                            Upload a new image to update your avatar.
                         </DialogDescription>
                     </DialogHeader>
                     <Form {...photoForm}>
                         <form onSubmit={photoForm.handleSubmit(onPhotoSubmit)} className="space-y-4" id="photo-form">
                             <FormField
                                 control={photoForm.control}
-                                name="photoURL"
+                                name="photo"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Image URL</FormLabel>
+                                        <FormLabel>Image</FormLabel>
                                         <FormControl>
-                                            <Input placeholder="https://example.com/image.png" {...field} />
+                                            <Input 
+                                                type="file" 
+                                                accept="image/png, image/jpeg, image/webp" 
+                                                onChange={(e) => field.onChange(e.target.files)}
+                                            />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
