@@ -96,7 +96,9 @@ export function Header() {
             <DropdownMenuItem asChild>
               <Link href="/dashboard/settings">Settings</Link>
             </DropdownMenuItem>
-            <DropdownMenuItem>Support</DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <a href="mailto:support@pesoprosperity.com">Support</a>
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout}>Logout</DropdownMenuItem>
           </DropdownMenuContent>
