@@ -1,22 +1,176 @@
+
+'use client';
+
 import { PageHeader } from "@/components/dashboard/page-header";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button, Form, FormControl, FormField, FormItem, FormLabel, FormMessage, Input } from "@/components/ui";
+import { useAuth, useFirestore, useUser, updateDocumentNonBlocking } from "@/firebase";
+import { useToast } from "@/hooks/use-toast";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { updateProfile } from "firebase/auth";
+import { doc } from "firebase/firestore";
+import { Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+
+
+const profileSchema = z.object({
+    firstName: z.string().min(2, 'First name is required.'),
+    lastName: z.string().min(2, 'Last name is required.'),
+    email: z.string().email(),
+});
+
+type ProfileFormValues = z.infer<typeof profileSchema>;
 
 export default function SettingsPage() {
+    const { user, isUserLoading } = useUser();
+    const auth = useAuth();
+    const firestore = useFirestore();
+    const { toast } = useToast();
+    const [isSaving, setIsSaving] = useState(false);
+
+    const form = useForm<ProfileFormValues>({
+        resolver: zodResolver(profileSchema),
+        defaultValues: {
+            firstName: '',
+            lastName: '',
+            email: '',
+        }
+    });
+
+    useEffect(() => {
+        if (user && !isUserLoading) {
+            form.reset({
+                firstName: user.displayName?.split(' ')[0] || '',
+                lastName: user.displayName?.split(' ').slice(1).join(' ') || '',
+                email: user.email || '',
+            });
+        }
+    }, [user, isUserLoading, form]);
+
+
+    const onSubmit = async (data: ProfileFormValues) => {
+        if (!user || !auth.currentUser) {
+            toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to update your profile.' });
+            return;
+        }
+
+        setIsSaving(true);
+        try {
+            // Update Firebase Auth Profile
+            await updateProfile(auth.currentUser, {
+                displayName: `${data.firstName} ${data.lastName}`,
+            });
+
+            // Update Firestore document
+            const userDocRef = doc(firestore, 'users', user.uid);
+            updateDocumentNonBlocking(userDocRef, {
+                firstName: data.firstName,
+                lastName: data.lastName,
+            });
+
+            toast({
+                title: 'Profile Updated',
+                description: 'Your profile information has been saved.',
+            });
+
+        } catch (error: any) {
+            toast({
+                variant: 'destructive',
+                title: 'Update Failed',
+                description: error.message || 'An unexpected error occurred.',
+            });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+
+    if (isUserLoading) {
+        return (
+            <div className="flex items-center justify-center p-8">
+                <Loader2 className="mr-2 h-8 w-8 animate-spin" />
+                <p>Loading settings...</p>
+            </div>
+        )
+    }
+
+
     return (
         <div>
             <PageHeader
                 title="Settings"
                 description="Manage your account and application settings."
             />
-            <Card>
-                <CardHeader>
-                    <CardTitle>Coming Soon</CardTitle>
-                    <CardDescription>This page is under construction. More settings will be available soon.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <p>In the meantime, you can manage your profile information through your authentication provider.</p>
-                </CardContent>
-            </Card>
+            <div className="grid gap-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Profile</CardTitle>
+                        <CardDescription>This is how your name appears in the application.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Form {...form}>
+                            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-w-lg">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <FormField
+                                        control={form.control}
+                                        name="firstName"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>First Name</FormLabel>
+                                                <FormControl>
+                                                    <Input placeholder="Juan" {...field} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="lastName"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Last Name</FormLabel>
+                                                <FormControl>
+                                                    <Input placeholder="dela Cruz" {...field} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                </div>
+                                <FormField
+                                    control={form.control}
+                                    name="email"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Email</FormLabel>
+                                            <FormControl>
+                                                <Input type="email" {...field} disabled />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <Button type="submit" disabled={isSaving}>
+                                    {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    Save Changes
+                                </Button>
+                            </form>
+                        </Form>
+                    </CardContent>
+                </Card>
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Password</CardTitle>
+                        <CardDescription>Manage your password settings.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Button variant="outline">Change Password</Button>
+                         <p className="text-sm text-muted-foreground mt-2">Password management is not yet implemented.</p>
+                    </CardContent>
+                </Card>
+            </div>
         </div>
     )
 }
