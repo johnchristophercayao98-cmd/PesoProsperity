@@ -2,7 +2,8 @@
 'use client';
 
 import { PageHeader } from "@/components/dashboard/page-header";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button, Form, FormControl, FormField, FormItem, FormLabel, FormMessage, Input, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, Avatar, AvatarImage, AvatarFallback, Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button, Input, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, Avatar, AvatarImage, AvatarFallback, Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useAuth, useFirestore, useUser, updateDocumentNonBlocking, useStorage, useDoc, useMemoFirebase } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -10,7 +11,7 @@ import { updateProfile } from "firebase/auth";
 import { doc } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { Loader2, Camera } from "lucide-react";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -75,8 +76,8 @@ export default function SettingsPage() {
                 lastName: userProfile.lastName || '',
                 email: userProfile.email || '',
             });
-        } else if (user && !isUserLoading) {
-            // Fallback for when firestore doc might be loading slower
+        } else if (user && !isUserLoading && !userProfile) {
+            // Fallback for when firestore doc might be loading slower or is non-existent
              profileForm.reset({
                 firstName: user.displayName?.split(' ')[0] || '',
                 lastName: user.displayName?.split(' ').slice(1).join(' ') || '',
@@ -94,7 +95,13 @@ export default function SettingsPage() {
             const nameParts = user.displayName.split(' ');
             const firstNameInitial = nameParts[0] ? nameParts[0][0] : '';
             const lastNameInitial = nameParts.length > 1 && nameParts[1] ? nameParts[1][0] : '';
-            return `${firstNameInitial}${lastNameInitial}`;
+            if (firstNameInitial && lastNameInitial) {
+                return `${firstNameInitial}${lastNameInitial}`;
+            }
+            return firstNameInitial;
+        }
+        if (user?.email) {
+            return user.email[0].toUpperCase();
         }
         return "??";
     }
@@ -291,16 +298,6 @@ export default function SettingsPage() {
                 </Card>
                  <Card>
                     <CardHeader>
-                        <CardTitle>Password</CardTitle>
-                        <CardDescription>Manage your password settings.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Button variant="outline">Change Password</Button>
-                         <p className="text-sm text-muted-foreground mt-2">Password management is not yet implemented.</p>
-                    </CardContent>
-                </Card>
-                 <Card>
-                    <CardHeader>
                         <CardTitle>Language & Region</CardTitle>
                         <CardDescription>Set your preferred language for the application.</CardDescription>
                     </CardHeader>
@@ -365,3 +362,6 @@ export default function SettingsPage() {
         </div>
     )
 }
+
+    
+    
