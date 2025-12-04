@@ -2,7 +2,7 @@
 'use client';
 
 import { PageHeader } from "@/components/dashboard/page-header";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button, Form, FormControl, FormField, FormItem, FormLabel, FormMessage, Input, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, Avatar, AvatarImage, AvatarFallback } from "@/components/ui";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button, Form, FormControl, FormField, FormItem, FormLabel, FormMessage, Input, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, Avatar, AvatarImage, AvatarFallback, Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui";
 import { useAuth, useFirestore, useUser, updateDocumentNonBlocking, useStorage, useDoc, useMemoFirebase } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -87,8 +87,8 @@ export default function SettingsPage() {
 
     const getAvatarFallback = () => {
         if (user?.isAnonymous) return "G";
-        if (profileForm.getValues('firstName') && profileForm.getValues('lastName')) {
-             return `${profileForm.getValues('firstName')[0]}${profileForm.getValues('lastName')[0]}`;
+        if (userProfile?.firstName && userProfile?.lastName) {
+             return `${userProfile.firstName[0]}${userProfile.lastName[0]}`;
         }
         if (user?.displayName) {
             const nameParts = user.displayName.split(' ');
@@ -299,6 +299,29 @@ export default function SettingsPage() {
                          <p className="text-sm text-muted-foreground mt-2">Password management is not yet implemented.</p>
                     </CardContent>
                 </Card>
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Language & Region</CardTitle>
+                        <CardDescription>Set your preferred language for the application.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="max-w-xs space-y-2">
+                           <FormItem>
+                             <FormLabel>Language</FormLabel>
+                              <Select>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="English" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="en">English</SelectItem>
+                                  <SelectItem value="fil">Filipino</SelectItem>
+                                </SelectContent>
+                              </Select>
+                           </FormItem>
+                           <p className="text-sm text-muted-foreground mt-2">Language switching is not yet fully implemented.</p>
+                        </div>
+                    </CardContent>
+                </Card>
             </div>
 
             <Dialog open={isPhotoDialogOpen} onOpenChange={setIsPhotoDialogOpen}>
@@ -342,5 +365,3 @@ export default function SettingsPage() {
         </div>
     )
 }
-
-    
