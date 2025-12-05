@@ -79,6 +79,7 @@ import {
 } from '@/firebase';
 import { collection, doc, Timestamp, query } from 'firebase/firestore';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { useLanguage } from '@/context/language-context';
 
 const transactionSchema = z.object({
   description: z.string().min(2, 'Description is required.'),
@@ -106,9 +107,7 @@ const expenseCategories = [
   'Utilities',
   'Marketing and Advertising',
   'Office Supplies',
-  'Software and Subscriptions',
   'Taxes',
-  'Travel',
   'Repairs and Maintenance',
   'Other',
 ];
@@ -173,6 +172,7 @@ const generateTransactionInstances = (
 };
 
 export function TransactionList() {
+  const { t } = useLanguage();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
@@ -445,7 +445,7 @@ export function TransactionList() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setTransactionToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setTransactionToDelete(null)}>{t('cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -574,7 +574,7 @@ export function TransactionList() {
           <DialogFooter className='pt-4'>
             <DialogClose asChild>
               <Button type="button" variant="secondary">
-                Cancel
+                {t('cancel')}
               </Button>
             </DialogClose>
             <Button type="submit" form="transaction-form">Save Transaction</Button>

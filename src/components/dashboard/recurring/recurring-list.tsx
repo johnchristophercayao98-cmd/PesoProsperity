@@ -77,6 +77,7 @@ import {
 } from '@/firebase';
 import { collection, doc, query, Timestamp } from 'firebase/firestore';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { useLanguage } from '@/context/language-context';
 
 
 const recurringSchema = z.object({
@@ -107,14 +108,13 @@ const expenseCategories = [
     'Utilities',
     'Marketing and Advertising',
     'Office Supplies',
-    'Software and Subscriptions',
     'Taxes',
-    'Travel',
     'Repairs and Maintenance',
     'Other',
 ];
 
 export function RecurringList() {
+  const { t } = useLanguage();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [editingTransaction, setEditingTransaction] = useState<RecurringTransaction | null>(null);
@@ -466,7 +466,7 @@ export function RecurringList() {
             <DialogFooter className="pt-4">
               <DialogClose asChild>
                 <Button type="button" variant="secondary">
-                  Cancel
+                  {t('cancel')}
                 </Button>
               </DialogClose>
               <Button type="submit" form="recurring-form">Save Transaction</Button>

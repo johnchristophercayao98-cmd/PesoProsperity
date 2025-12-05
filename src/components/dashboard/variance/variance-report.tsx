@@ -25,6 +25,7 @@ import {
   useMemoFirebase,
 } from '@/firebase';
 import { collection, query, where, Timestamp } from 'firebase/firestore';
+import { useLanguage } from "@/context/language-context";
 
 const toDate = (date: any): Date | undefined => {
   if (!date) return undefined;
@@ -94,6 +95,7 @@ const generateTransactionInstances = (
   };
 
 export function VarianceReport() {
+    const { t } = useLanguage();
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
     
     const firestore = useFirestore();
@@ -291,7 +293,7 @@ export function VarianceReport() {
                     <CardDescription>For {format(selectedDate, "MMMM yyyy")}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <h3 className="text-lg font-semibold mb-2">Income</h3>
+                    <h3 className="text-lg font-semibold mb-2">{t('income')}</h3>
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -316,7 +318,7 @@ export function VarianceReport() {
                         </TableBody>
                     </Table>
 
-                    <h3 className="text-lg font-semibold mt-6 mb-2">Expenses</h3>
+                    <h3 className="text-lg font-semibold mt-6 mb-2">{t('expenses')}</h3>
                      <Table>
                         <TableHeader>
                             <TableRow>
@@ -347,5 +349,3 @@ export function VarianceReport() {
         </div>
     )
 }
-
-    

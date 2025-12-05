@@ -88,6 +88,7 @@ import {
   deleteDocumentNonBlocking,
 } from '@/firebase';
 import { collection, query, where, doc, Timestamp } from 'firebase/firestore';
+import { useLanguage } from '@/context/language-context';
 
 const COLORS = [
   'hsl(var(--chart-1))',
@@ -112,9 +113,7 @@ const expenseCategories = [
   'Utilities',
   'Marketing and Advertising',
   'Office Supplies',
-  'Software and Subscriptions',
   'Taxes',
-  'Travel',
   'Repairs and Maintenance',
   'Other',
 ];
@@ -198,6 +197,7 @@ const generateTransactionInstances = (
 };
 
 export function BudgetTabs() {
+  const { t } = useLanguage();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [aiResult, setAiResult] = useState<SuggestMonthlyBudgetOutput | null>(

@@ -34,6 +34,7 @@ import {
 } from 'firebase/firestore';
 import { format, addDays, addWeeks, addMonths, addYears, isAfter, isBefore, isEqual, isWithinInterval, startOfDay, startOfMonth, endOfMonth, eachMonthOfInterval } from 'date-fns';
 import type { Transaction, RecurringTransaction, Budget, Debt } from '@/lib/types';
+import { useLanguage } from '@/context/language-context';
 
 const toDate = (date: any): Date | undefined => {
   if (!date) return undefined;
@@ -105,6 +106,7 @@ const generateTransactionInstances = (
 const formatCurrencyForCSV = (value: number) => `"₱${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}"`;
 
 export function ReportGenerator() {
+  const { t } = useLanguage();
   const [reportType, setReportType] = useState<string>();
   const [startDate, setStartDate] = useState<Date>();
   const [endDate, setEndDate] = useState<Date>();
@@ -325,7 +327,7 @@ export function ReportGenerator() {
         grossProfit.percentage = grossProfit.budgeted ? (grossProfit.variance / grossProfit.budgeted) * 100 : (grossProfit.actual !== 0 ? 100 : 0);
         csvContent += summaryRow('Gross Profit', grossProfit) + '\n';
         
-        const overheadCats = ['Salaries and Wages', 'Rent', 'Utilities', 'Marketing and Advertising', 'Office Supplies', 'Software and Subscriptions', 'Taxes', 'Travel', 'Repairs and Maintenance', 'Other'];
+        const overheadCats = ['Salaries and Wages', 'Rent', 'Utilities', 'Marketing and Advertising', 'Office Supplies', 'Taxes', 'Repairs and Maintenance', 'Other'];
         const overheadsData = allData.filter(d => overheadCats.includes(d.name) && !d.isIncome);
         const totalOverheads = overheadsData.reduce((acc, data) => {
           acc.budgeted += data.budgeted;
@@ -501,14 +503,14 @@ export function ReportGenerator() {
   return (
     <Card className="max-w-2xl mx-auto">
       <CardHeader>
-        <CardTitle>Generate a Report</CardTitle>
+        <CardTitle>{t('financialReports')}</CardTitle>
         <CardDescription>
-          Select the type of report and the date range you want to cover.
+          {t('financialReportsDescription')}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="space-y-2">
-          <Label htmlFor="report-type">Report Type</Label>
+          <Label htmlFor="report-type">{t('reports')}</Label>
           <Select onValueChange={setReportType} value={reportType}>
             <SelectTrigger id="report-type">
               <SelectValue placeholder="Select a report type" />
@@ -549,4 +551,3 @@ export function ReportGenerator() {
     </Card>
   );
 }
-
