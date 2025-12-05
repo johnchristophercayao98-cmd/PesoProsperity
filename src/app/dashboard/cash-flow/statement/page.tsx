@@ -1,5 +1,4 @@
 
-
 "use client"
 
 import { useState, useMemo } from "react";
@@ -15,6 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { useLanguage } from "@/context/language-context";
 
 const toDate = (date: any): Date | undefined => {
   if (!date) return undefined;
@@ -88,6 +88,7 @@ export default function StatementPage() {
   const firestore = useFirestore();
   const { user } = useUser();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const { t } = useLanguage();
   
   const singleTransactionsQuery = useMemoFirebase(() => {
     if (!user) return null;
@@ -199,7 +200,7 @@ export default function StatementPage() {
     return (
       <div className="flex items-center justify-center p-8">
           <Loader2 className="mr-2 h-8 w-8 animate-spin" />
-          <p>Loading statement data...</p>
+          <p>{t('loadingStatementData')}</p>
       </div>
     )
   }
@@ -207,8 +208,8 @@ export default function StatementPage() {
   return (
     <div className="grid gap-6">
        <PageHeader
-            title="Cash Flow Statement"
-            description="Track your cash inflows and outflows to see your running cash balance."
+            title={t('cashFlowStatement')}
+            description={t('cashFlowStatementDescription')}
         />
        <div className="flex justify-end">
             <Popover>
@@ -236,59 +237,59 @@ export default function StatementPage() {
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           <Card>
             <CardHeader className="flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Beginning Balance</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('beginningBalance')}</CardTitle>
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
                 <div className="text-2xl font-bold">₱{beginningBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                <p className="text-xs text-muted-foreground">As of {format(startOfYear(selectedDate), "MMM d, yyyy")}</p>
+                <p className="text-xs text-muted-foreground">{t('asOf')} {format(startOfYear(selectedDate), "MMM d, yyyy")}</p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Total Cash Inflows</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('totalCashInflows')}</CardTitle>
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
                 <div className="text-2xl font-bold text-green-600">+₱{totalInflows.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                <p className="text-xs text-muted-foreground">Total income in {format(selectedDate, "yyyy")}</p>
+                <p className="text-xs text-muted-foreground">{t('totalIncomeIn')} {format(selectedDate, "yyyy")}</p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Total Cash Outflows</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('totalCashOutflows')}</CardTitle>
                 <TrendingDown className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
                 <div className="text-2xl font-bold text-red-600">-₱{totalOutflows.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                <p className="text-xs text-muted-foreground">Total expenses in {format(selectedDate, "yyyy")}</p>
+                <p className="text-xs text-muted-foreground">{t('totalExpensesIn')} {format(selectedDate, "yyyy")}</p>
             </CardContent>
           </Card>
            <Card>
             <CardHeader className="flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Ending Cash Balance</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('endingCashBalance')}</CardTitle>
                 <Wallet className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
                 <div className="text-2xl font-bold">₱{endingBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                <p className="text-xs text-muted-foreground">As of {format(monthlyData[monthlyData.length-1]?.month || new Date(), "MMM d, yyyy")}</p>
+                <p className="text-xs text-muted-foreground">{t('asOf')} {format(monthlyData[monthlyData.length-1]?.month || new Date(), "MMM d, yyyy")}</p>
             </CardContent>
           </Card>
       </div>
        <Card>
         <CardHeader>
-          <CardTitle>Monthly Cash Flow Statement</CardTitle>
-          <CardDescription>Aggregated cash movements for each month in {format(selectedDate, "yyyy")}.</CardDescription>
+          <CardTitle>{t('monthlyCashFlowStatement')}</CardTitle>
+          <CardDescription>{t('monthlyCashFlowStatementDescription')} {format(selectedDate, "yyyy")}.</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Month</TableHead>
-                <TableHead className="text-right">Cash In</TableHead>
-                <TableHead className="text-right">Cash Out</TableHead>
-                <TableHead className="text-right">Net Change</TableHead>
-                <TableHead className="text-right">Ending Balance</TableHead>
+                <TableHead>{t('month')}</TableHead>
+                <TableHead className="text-right">{t('cashIn')}</TableHead>
+                <TableHead className="text-right">{t('cashOut')}</TableHead>
+                <TableHead className="text-right">{t('netChange')}</TableHead>
+                <TableHead className="text-right">{t('endingBalance')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -313,7 +314,7 @@ export default function StatementPage() {
           </Table>
           {monthlyData.length === 0 && !isLoading && (
             <div className="text-center p-8 text-muted-foreground">
-              No transactions found for the selected year.
+              {t('noTransactionsForYear')}
             </div>
           )}
         </CardContent>

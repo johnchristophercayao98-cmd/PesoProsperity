@@ -31,6 +31,7 @@ import { collection, query, orderBy, Timestamp } from "firebase/firestore"
 import type { Transaction, FinancialGoal, RecurringTransaction } from "@/lib/types"
 import { Loader2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { useLanguage } from "@/context/language-context"
 
 const chartConfig = {
   income: {
@@ -113,6 +114,7 @@ const generateTransactionInstances = (
 export default function DashboardPage() {
   const { user } = useUser();
   const firestore = useFirestore();
+  const { t } = useLanguage();
 
   const singleTransactionsQuery = useMemoFirebase(() => {
     if (!user) return null;
@@ -197,24 +199,24 @@ export default function DashboardPage() {
   
   const mainStats = [
     {
-      title: 'Net Revenue',
+      title: t('netRevenue'),
       value: `₱${netRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      change: 'All-time total',
+      change: t('allTimeTotal'),
     },
     {
-      title: 'Total Expenses',
+      title: t('totalExpenses'),
       value: `₱${totalExpenses.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      change: 'All-time total',
+      change: t('allTimeTotal'),
     },
     {
-      title: 'Profit Margin',
+      title: t('profitMargin'),
       value: `${profitMargin.toFixed(1)}%`,
-      change: 'All-time total',
+      change: t('allTimeTotal'),
     },
     {
-      title: 'Cash Reserve',
+      title: t('cashReserve'),
       value: `₱${cashReserve.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      change: 'Total available cash',
+      change: t('totalAvailableCash'),
     },
   ];
 
@@ -222,7 +224,7 @@ export default function DashboardPage() {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="mr-2 h-8 w-8 animate-spin" />
-        <p>Loading Dashboard...</p>
+        <p>{t('loadingDashboard')}</p>
       </div>
     );
   }
@@ -246,10 +248,10 @@ export default function DashboardPage() {
       <div className="grid gap-4 lg:grid-cols-7">
         <Card className="lg:col-span-full xl:col-span-4">
           <CardHeader>
-            <CardTitle>Overview</CardTitle>
+            <CardTitle>{t('overview')}</CardTitle>
           </CardHeader>
           <CardContent className="pl-2">
-            <ChartContainer config={chartConfig} className="h-[300px] w-full">
+            <ChartContainer config={{...chartConfig, income: {...chartConfig.income, label: t('income')}, expenses: {...chartConfig.expenses, label: t('expenses')}}} className="h-[300px] w-full">
               <ResponsiveContainer>
                 <BarChart data={chartData}>
                   <CartesianGrid vertical={false} />
@@ -274,7 +276,7 @@ export default function DashboardPage() {
 
         <Card className="lg:col-span-full xl:col-span-3">
           <CardHeader>
-            <CardTitle>Recent Transactions</CardTitle>
+            <CardTitle>{t('recentTransactions')}</CardTitle>
           </CardHeader>
           <CardContent>
             {recentTransactions && recentTransactions.length > 0 ? (
@@ -298,7 +300,7 @@ export default function DashboardPage() {
             </div>
             ) : (
               <div className="text-center py-8 text-muted-foreground">
-                <p>No transactions recorded yet.</p>
+                <p>{t('noTransactionsRecorded')}</p>
               </div>
             )}
           </CardContent>
@@ -307,7 +309,7 @@ export default function DashboardPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Financial Goals Progress</CardTitle>
+          <CardTitle>{t('financialGoalsProgress')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {financialGoals && financialGoals.length > 0 ? (
@@ -324,7 +326,7 @@ export default function DashboardPage() {
             ))
            ) : (
             <div className="text-center py-8 text-muted-foreground">
-              <p>No financial goals set yet.</p>
+              <p>{t('noFinancialGoalsSet')}</p>
             </div>
            )}
         </CardContent>

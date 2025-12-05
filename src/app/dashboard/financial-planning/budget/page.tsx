@@ -1,12 +1,16 @@
+
+'use client';
 import { PageHeader } from "@/components/dashboard/page-header";
 import { BudgetTabs } from "@/components/dashboard/budget/budget-tabs";
+import { useLanguage } from "@/context/language-context";
 
 export default function BudgetPlannerPage() {
+  const { t } = useLanguage();
   return (
     <div>
       <PageHeader
-        title="Budget Planner"
-        description="Create and manage your monthly budgets, or let our AI suggest one for you."
+        title={t('budgetPlanner')}
+        description={t('budgetPlannerDescription')}
       />
       <BudgetTabs />
     </div>

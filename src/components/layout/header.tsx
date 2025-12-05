@@ -22,6 +22,7 @@ import { signOut } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/firebase/provider';
 import { SupportDialog } from './support-dialog';
+import { useLanguage } from '@/context/language-context';
 
 export function Header() {
   const { isMobile } = useSidebar();
@@ -31,15 +32,16 @@ export function Header() {
   const { toast } = useToast();
   const { user } = useUser();
   const [isSupportDialogOpen, setIsSupportDialogOpen] = useState(false);
+  const { t } = useLanguage();
 
 
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      toast({ title: 'Logged Out', description: 'You have been successfully logged out.' });
+      toast({ title: t('loggedOut'), description: t('loggedOutSuccess') });
       router.push('/login');
     } catch (error) {
-      toast({ variant: 'destructive', title: 'Logout Failed', description: 'An error occurred during logout.' });
+      toast({ variant: 'destructive', title: t('logoutFailed'), description: t('logoutFailedError') });
     }
   };
   
@@ -50,12 +52,14 @@ export function Header() {
     let path = '/dashboard';
     const crumbs = parts.slice(1).map((part) => {
       path += `/${part}`;
+      const labelKey = part.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()).replace(/ /g, '');
+      const translatedLabel = t(labelKey.charAt(0).toLowerCase() + labelKey.slice(1));
       return {
         href: path,
-        label: part.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+        label: translatedLabel || part.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
       };
     });
-    return [{ href: '/dashboard', label: 'Dashboard' }, ...crumbs];
+    return [{ href: '/dashboard', label: t('dashboard') }, ...crumbs];
   };
 
   const breadcrumbs = getBreadcrumbs();
@@ -96,16 +100,16 @@ export function Header() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>{user?.isAnonymous ? 'Guest Account' : user?.email}</DropdownMenuLabel>
+              <DropdownMenuLabel>{user?.isAnonymous ? t('guestAccount') : user?.email}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
-                <Link href="/dashboard/settings">Settings</Link>
+                <Link href="/dashboard/settings">{t('settings')}</Link>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setIsSupportDialogOpen(true)}>
-                Support
+                {t('support')}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout}>Logout</DropdownMenuItem>
+              <DropdownMenuItem onClick={handleLogout}>{t('logout')}</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

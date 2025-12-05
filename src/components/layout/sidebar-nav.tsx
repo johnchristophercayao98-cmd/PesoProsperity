@@ -1,3 +1,4 @@
+
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -33,58 +34,60 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
-
-const navItems = [
-  {
-    href: '/dashboard',
-    label: 'Dashboard',
-    icon: LayoutDashboard,
-  },
-  {
-    label: 'Financial Planning',
-    icon: FileText,
-    subItems: [
-      { href: '/dashboard/financial-planning/goals', label: 'Financial Goals', icon: Goal },
-      { href: '/dashboard/financial-planning/budget', label: 'Budget Planner', icon: Notebook },
-    ],
-  },
-  {
-    href: '/dashboard/transactions',
-    label: 'Transactions',
-    icon: ArrowRightLeft,
-  },
-  {
-    label: 'Cost Control',
-    icon: GaugeCircle,
-    subItems: [
-      { href: '/dashboard/cost-control/variance', label: 'Variance Analysis', icon: BarChartHorizontal },
-      { href: '/dashboard/cost-control/recurring', label: 'Recurring', icon: Repeat },
-    ],
-  },
-  {
-    label: 'Cash Flow',
-    icon: Waves,
-    subItems: [
-      { href: '/dashboard/cash-flow/statement', label: 'Statement', icon: TrendingUp },
-      { href: '/dashboard/cash-flow/debt-tracker', label: 'Debt Tracker', icon: Landmark },
-    ],
-  },
-  {
-    href: '/dashboard/reports',
-    label: 'Reports',
-    icon: PieChart,
-  },
-  {
-    href: '/dashboard/settings',
-    label: 'Settings',
-    icon: Settings,
-  },
-];
+import { useLanguage } from '@/context/language-context';
 
 export function SidebarNav() {
   const pathname = usePathname();
   const { state } = useSidebar();
-  
+  const { t } = useLanguage();
+
+  const navItems = [
+    {
+      href: '/dashboard',
+      label: t('dashboard'),
+      icon: LayoutDashboard,
+    },
+    {
+      label: t('financialPlanning'),
+      icon: FileText,
+      subItems: [
+        { href: '/dashboard/financial-planning/goals', label: t('financialGoals'), icon: Goal },
+        { href: '/dashboard/financial-planning/budget', label: t('budgetPlanner'), icon: Notebook },
+      ],
+    },
+    {
+      href: '/dashboard/transactions',
+      label: t('transactions'),
+      icon: ArrowRightLeft,
+    },
+    {
+      label: t('costControl'),
+      icon: GaugeCircle,
+      subItems: [
+        { href: '/dashboard/cost-control/variance', label: t('varianceAnalysis'), icon: BarChartHorizontal },
+        { href: '/dashboard/cost-control/recurring', label: t('recurring'), icon: Repeat },
+      ],
+    },
+    {
+      label: t('cashFlow'),
+      icon: Waves,
+      subItems: [
+        { href: '/dashboard/cash-flow/statement', label: t('statement'), icon: TrendingUp },
+        { href: '/dashboard/cash-flow/debt-tracker', label: t('debtTracker'), icon: Landmark },
+      ],
+    },
+    {
+      href: '/dashboard/reports',
+      label: t('reports'),
+      icon: PieChart,
+    },
+    {
+      href: '/dashboard/settings',
+      label: t('settings'),
+      icon: Settings,
+    },
+  ];
+
   const getInitialOpenState = () => {
     const openSections: Record<string, boolean> = {};
     navItems.forEach(item => {

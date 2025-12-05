@@ -18,6 +18,7 @@ import { Logo } from '@/components/icons/logo';
 import { Loader2 } from 'lucide-react';
 import { doc, setDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
+import { useLanguage } from '@/context/language-context';
 
 const signupSchema = z.object({
   firstName: z.string().min(1, 'First name is required.'),
@@ -34,6 +35,7 @@ export default function SignupPage() {
   const firestore = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
@@ -64,13 +66,13 @@ export default function SignupPage() {
         photoURL: user.photoURL,
       });
 
-      toast({ title: 'Account Created Successfully!' });
+      toast({ title: t('accountCreatedSuccess') });
       router.push('/dashboard');
     } catch (error) {
       const authError = error as AuthError;
       toast({
         variant: 'destructive',
-        title: 'Signup Failed',
+        title: t('signupFailed'),
         description: authError.message,
       });
     } finally {
@@ -86,8 +88,8 @@ export default function SignupPage() {
               <Logo className="h-10 w-10 text-primary" />
               <span className="text-3xl font-bold text-primary">PesoProsperity</span>
             </div>
-          <CardTitle>Create an Account</CardTitle>
-          <CardDescription>Join us to start managing your finances.</CardDescription>
+          <CardTitle>{t('createAnAccount')}</CardTitle>
+          <CardDescription>{t('createAnAccountDescription')}</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -98,7 +100,7 @@ export default function SignupPage() {
                   name="firstName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>First Name</FormLabel>
+                      <FormLabel>{t('firstName')}</FormLabel>
                       <FormControl><Input placeholder="Juan" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
@@ -109,7 +111,7 @@ export default function SignupPage() {
                   name="lastName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Last Name</FormLabel>
+                      <FormLabel>{t('lastName')}</FormLabel>
                       <FormControl><Input placeholder="dela Cruz" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
@@ -121,7 +123,7 @@ export default function SignupPage() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>{t('email')}</FormLabel>
                     <FormControl><Input type="email" placeholder="you@example.com" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
@@ -132,7 +134,7 @@ export default function SignupPage() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Password</FormLabel>
+                    <FormLabel>{t('password')}</FormLabel>
                     <FormControl><Input type="password" placeholder="••••••••" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
@@ -140,14 +142,14 @@ export default function SignupPage() {
               />
               <Button type="submit" className="w-full" disabled={isLoading}>
                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Create Account
+                {t('createAccount')}
               </Button>
             </form>
           </Form>
           <p className="mt-4 text-center text-sm text-muted-foreground">
-            Already have an account?{' '}
+            {t('alreadyHaveAccount')}{' '}
             <Link href="/login" className="font-medium text-primary hover:underline">
-              Login
+              {t('login')}
             </Link>
           </p>
         </CardContent>

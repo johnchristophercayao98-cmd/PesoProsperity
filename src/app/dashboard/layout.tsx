@@ -1,3 +1,4 @@
+
 'use client';
 
 import { SidebarProvider, Sidebar, SidebarInset } from "@/components/ui/sidebar";
@@ -7,10 +8,12 @@ import { useUser } from "@/firebase/provider";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
+import { useLanguage } from "@/context/language-context";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
+  const { t } = useLanguage();
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -22,7 +25,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="ml-4">Loading user data...</p>
+        <p className="ml-4">{t('loadingUserData')}</p>
       </div>
     );
   }

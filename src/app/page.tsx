@@ -1,10 +1,15 @@
+
+'use client';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ArrowRight, BarChart, Goal, PiggyBank } from 'lucide-react';
 import { Logo } from '@/components/icons/logo';
+import { useLanguage } from '@/context/language-context';
 
 export default function LandingPage() {
+  const { t } = useLanguage();
+
   return (
     <div className="flex flex-col min-h-screen">
       <header className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -14,7 +19,7 @@ export default function LandingPage() {
             <span className="text-2xl font-bold text-primary">PesoProsperity</span>
           </div>
           <Button asChild>
-            <Link href="/login">Login</Link>
+            <Link href="/login">{t('login')}</Link>
           </Button>
         </div>
       </header>
@@ -23,15 +28,15 @@ export default function LandingPage() {
         <section className="py-20 md:py-32 bg-secondary/50">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h1 className="text-4xl md:text-6xl font-headline font-bold text-primary tracking-tight">
-              Financial Clarity for Filipino Small Enterprises
+              {t('landingTitle')}
             </h1>
             <p className="mt-6 max-w-3xl mx-auto text-lg md:text-xl text-muted-foreground">
-              PesoProsperity is a simple, beginner-friendly budgeting system designed to empower small enterprises in the Philippines. Plan your finances, control costs, and manage cash flow with ease.
+              {t('landingSubtitle')}
             </p>
             <div className="mt-10 flex justify-center gap-4">
               <Button size="lg" asChild>
                 <Link href="/signup">
-                  Get Started for Free
+                  {t('getStartedForFree')}
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>
@@ -42,8 +47,8 @@ export default function LandingPage() {
         <section className="py-20 md:py-24">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-16">
-              <h2 className="text-3xl md:text-4xl font-headline font-bold text-primary">A toolkit for your business's success</h2>
-              <p className="mt-4 max-w-2xl mx-auto text-lg text-muted-foreground">Everything you need to make informed financial decisions.</p>
+              <h2 className="text-3xl md:text-4xl font-headline font-bold text-primary">{t('toolkitTitle')}</h2>
+              <p className="mt-4 max-w-2xl mx-auto text-lg text-muted-foreground">{t('toolkitSubtitle')}</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               <Card className="text-center">
@@ -53,8 +58,8 @@ export default function LandingPage() {
                       <Goal className="h-8 w-8 text-primary" />
                     </div>
                   </div>
-                  <h3 className="text-xl font-bold font-headline">Financial Planning</h3>
-                  <p className="mt-2 text-muted-foreground">Set goals, create monthly budgets, and review your financial plans regularly to stay on track.</p>
+                  <h3 className="text-xl font-bold font-headline">{t('featureFinancialPlanning')}</h3>
+                  <p className="mt-2 text-muted-foreground">{t('featureFinancialPlanningDescription')}</p>
                 </CardContent>
               </Card>
               <Card className="text-center">
@@ -64,8 +69,8 @@ export default function LandingPage() {
                       <PiggyBank className="h-8 w-8 text-primary" />
                     </div>
                   </div>
-                  <h3 className="text-xl font-bold font-headline">Cost Control</h3>
-                  <p className="mt-2 text-muted-foreground">Compare budgeted amounts with actual expenses and get alerts when you're overspending.</p>
+                  <h3 className="text-xl font-bold font-headline">{t('featureCostControl')}</h3>
+                  <p className="mt-2 text-muted-foreground">{t('featureCostControlDescription')}</p>
                 </CardContent>
               </Card>
               <Card className="text-center">
@@ -75,8 +80,8 @@ export default function LandingPage() {
                       <BarChart className="h-8 w-8 text-primary" />
                     </div>
                   </div>
-                  <h3 className="text-xl font-bold font-headline">Cash Flow Management</h3>
-                  <p className="mt-2 text-muted-foreground">Use simple forecasts and a debt tracker to manage your cash flow effectively.</p>
+                  <h3 className="text-xl font-bold font-headline">{t('featureCashFlow')}</h3>
+                  <p className="mt-2 text-muted-foreground">{t('featureCashFlowDescription')}</p>
                 </CardContent>
               </Card>
             </div>
@@ -86,7 +91,7 @@ export default function LandingPage() {
 
       <footer className="py-6 bg-secondary/50">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} PesoProsperity. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} PesoProsperity. {t('allRightsReserved')}</p>
         </div>
       </footer>
     </div>
