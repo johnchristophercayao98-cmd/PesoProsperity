@@ -15,6 +15,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Label } from "@/components/ui/label";
+import { useLanguage } from "@/context/language-context";
 
 
 const profileSchema = z.object({
@@ -49,6 +50,7 @@ export default function SettingsPage() {
     const { toast } = useToast();
     const [isSaving, setIsSaving] = useState(false);
     const [isPhotoDialogOpen, setIsPhotoDialogOpen] = useState(false);
+    const { t, locale, setLocale } = useLanguage();
     
     const userDocRef = useMemoFirebase(() => {
         if (!user) return null;
@@ -125,7 +127,6 @@ export default function SettingsPage() {
                 lastName: data.lastName,
             });
 
-            // This will trigger the onAuthStateChanged listener and update the user object everywhere
             await auth.currentUser.reload(); 
 
             toast({
@@ -164,7 +165,6 @@ export default function SettingsPage() {
             const userDocRef = doc(firestore, 'users', user.uid);
             updateDocumentNonBlocking(userDocRef, { photoURL: downloadURL });
             
-            // Force a reload of the user object to reflect the new photoURL instantly
             await auth.currentUser.reload();
             
             toast({
@@ -219,14 +219,14 @@ export default function SettingsPage() {
     return (
         <div>
             <PageHeader
-                title="Settings"
-                description="Manage your account and application settings."
+                title={t('settings')}
+                description={t('manageAccountSettings')}
             />
             <div className="grid gap-6">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Profile</CardTitle>
-                        <CardDescription>This is how your name and picture appears in the application.</CardDescription>
+                        <CardTitle>{t('profile')}</CardTitle>
+                        <CardDescription>{t('profileDescription')}</CardDescription>
                     </CardHeader>
                     <CardContent className="grid md:grid-cols-[150px_1fr] gap-8">
                         <div className="flex flex-col items-center gap-4">
@@ -254,7 +254,7 @@ export default function SettingsPage() {
                                         name="firstName"
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel>First Name</FormLabel>
+                                                <FormLabel>{t('firstName')}</FormLabel>
                                                 <FormControl>
                                                     <Input placeholder="Juan" {...field} />
                                                 </FormControl>
@@ -267,7 +267,7 @@ export default function SettingsPage() {
                                         name="lastName"
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel>Last Name</FormLabel>
+                                                <FormLabel>{t('lastName')}</FormLabel>
                                                 <FormControl>
                                                     <Input placeholder="dela Cruz" {...field} />
                                                 </FormControl>
@@ -281,7 +281,7 @@ export default function SettingsPage() {
                                     name="email"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Email</FormLabel>
+                                            <FormLabel>{t('email')}</FormLabel>
                                             <FormControl>
                                                 <Input type="email" {...field} disabled />
                                             </FormControl>
@@ -291,7 +291,7 @@ export default function SettingsPage() {
                                 />
                                 <Button type="submit" disabled={isSaving}>
                                     {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    Save Changes
+                                    {t('saveChanges')}
                                 </Button>
                             </form>
                         </Form>
@@ -300,24 +300,21 @@ export default function SettingsPage() {
 
                  <Card>
                     <CardHeader>
-                        <CardTitle>Language &amp; Region</CardTitle>
-                        <CardDescription>Set your preferred language for the application.</CardDescription>
+                        <CardTitle>{t('languageAndRegion')}</CardTitle>
+                        <CardDescription>{t('languageAndRegionDescription')}</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-2 max-w-sm">
-                            <Label htmlFor="language">Language</Label>
-                            <Select defaultValue="en">
+                            <Label htmlFor="language">{t('language')}</Label>
+                            <Select value={locale} onValueChange={(value) => setLocale(value as 'en' | 'ph')}>
                                 <SelectTrigger id="language">
-                                    <SelectValue placeholder="Select language" />
+                                    <SelectValue placeholder={t('selectLanguage')} />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="en">English</SelectItem>
-                                    <SelectItem value="ph">Filipino</SelectItem>
+                                    <SelectItem value="en">{t('english')}</SelectItem>
+                                    <SelectItem value="ph">{t('filipino')}</SelectItem>
                                 </SelectContent>
                             </Select>
-                            <p className="text-sm text-muted-foreground pt-2">
-                                Note: Language switching is currently a visual placeholder. Full functionality will be implemented soon.
-                            </p>
                         </div>
                     </CardContent>
                 </Card>

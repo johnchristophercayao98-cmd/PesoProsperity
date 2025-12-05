@@ -15,6 +15,7 @@ import { useAuth } from '@/firebase';
 import { signInWithEmailAndPassword, signInAnonymously, AuthError } from 'firebase/auth';
 import { Logo } from '@/components/icons/logo';
 import { Loader2 } from 'lucide-react';
+import { useLanguage } from '@/context/language-context';
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address.'),
@@ -28,6 +29,7 @@ export default function LoginPage() {
   const auth = useAuth();
   const router = useRouter();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -80,8 +82,8 @@ export default function LoginPage() {
               <Logo className="h-10 w-10 text-primary" />
               <span className="text-3xl font-bold text-primary">PesoProsperity</span>
             </div>
-          <CardTitle>Welcome Back</CardTitle>
-          <CardDescription>Enter your credentials to access your dashboard.</CardDescription>
+          <CardTitle>{t('welcomeBack')}</CardTitle>
+          <CardDescription>{t('loginDescription')}</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -91,7 +93,7 @@ export default function LoginPage() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>{t('email')}</FormLabel>
                     <FormControl>
                       <Input type="email" placeholder="you@example.com" {...field} />
                     </FormControl>
@@ -104,7 +106,7 @@ export default function LoginPage() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Password</FormLabel>
+                    <FormLabel>{t('password')}</FormLabel>
                     <FormControl>
                       <Input type="password" placeholder="••••••••" {...field} />
                     </FormControl>
@@ -114,7 +116,7 @@ export default function LoginPage() {
               />
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Login
+                {t('login')}
               </Button>
             </form>
           </Form>
@@ -123,16 +125,16 @@ export default function LoginPage() {
               <span className="w-full border-t" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
+              <span className="bg-background px-2 text-muted-foreground">{t('orContinueWith')}</span>
             </div>
           </div>
           <Button variant="outline" className="w-full" onClick={handleAnonymousSignIn} disabled={isLoading}>
-            Sign in as Guest
+            {t('signInAsGuest')}
           </Button>
           <p className="mt-4 text-center text-sm text-muted-foreground">
-            Don't have an account?{' '}
+            {t('dontHaveAccount')}{' '}
             <Link href="/signup" className="font-medium text-primary hover:underline">
-              Sign up
+              {t('signUp')}
             </Link>
           </p>
         </CardContent>
