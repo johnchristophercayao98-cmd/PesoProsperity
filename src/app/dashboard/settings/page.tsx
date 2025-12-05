@@ -7,7 +7,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useAuth, useFirestore, useUser, updateDocumentNonBlocking, useStorage, useDoc, useMemoFirebase } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { updateProfile } from "firebase/auth";
+import { updateProfile, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "firebase/auth";
 import { doc } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { Loader2, Camera } from "lucide-react";
@@ -25,6 +25,17 @@ const profileSchema = z.object({
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
+
+const passwordSchema = z.object({
+    currentPassword: z.string().min(1, 'Current password is required.'),
+    newPassword: z.string().min(6, 'New password must be at least 6 characters.'),
+    confirmPassword: z.string().min(6, 'Confirm password must be at least 6 characters.'),
+}).refine(data => data.newPassword === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+});
+
+type PasswordFormValues = z.infer<typeof passwordSchema>;
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
@@ -48,7 +59,9 @@ export default function SettingsPage() {
     const firestore = useFirestore();
     const storage = useStorage();
     const { toast } = useToast();
-    const [isSaving, setIsSaving] = useState(false);
+    const [isSavingProfile, setIsSavingProfile] = useState(false);
+    const [isSavingPassword, setIsSavingPassword] = useState(false);
+    const [isSavingPhoto, setIsSavingPhoto] = useState(false);
     const [isPhotoDialogOpen, setIsPhotoDialogOpen] = useState(false);
     const { t, locale, setLocale } = useLanguage();
     
@@ -65,6 +78,15 @@ export default function SettingsPage() {
             firstName: '',
             lastName: '',
             email: '',
+        }
+    });
+
+    const passwordForm = useForm<PasswordFormValues>({
+        resolver: zodResolver(passwordSchema),
+        defaultValues: {
+            currentPassword: '',
+            newPassword: '',
+            confirmPassword: '',
         }
     });
 
@@ -111,11 +133,11 @@ export default function SettingsPage() {
 
     const onProfileSubmit = async (data: ProfileFormValues) => {
         if (!user || !auth.currentUser) {
-            toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to update your profile.' });
+            toast({ variant: 'destructive', title: t('error'), description: t('mustBeLoggedIn') });
             return;
         }
 
-        setIsSaving(true);
+        setIsSavingProfile(true);
         try {
             await updateProfile(auth.currentUser, {
                 displayName: `${data.firstName} ${data.lastName}`,
@@ -130,20 +152,49 @@ export default function SettingsPage() {
             await auth.currentUser.reload(); 
 
             toast({
-                title: 'Profile Updated',
-                description: 'Your profile information has been saved.',
+                title: t('profileUpdated'),
+                description: t('profileUpdatedSuccess'),
             });
 
         } catch (error: any) {
             toast({
                 variant: 'destructive',
-                title: 'Update Failed',
-                description: error.message || 'An unexpected error occurred.',
+                title: t('updateFailed'),
+                description: error.message || t('unexpectedError'),
             });
         } finally {
-            setIsSaving(false);
+            setIsSavingProfile(false);
         }
     };
+    
+    const onPasswordSubmit = async (data: PasswordFormValues) => {
+        if (!user || !auth.currentUser || !user.email) {
+             toast({ variant: 'destructive', title: t('error'), description: t('mustBeLoggedInEmail') });
+            return;
+        }
+        setIsSavingPassword(true);
+        try {
+            const credential = EmailAuthProvider.credential(user.email, data.currentPassword);
+            await reauthenticateWithCredential(auth.currentUser, credential);
+            await updatePassword(auth.currentUser, data.newPassword);
+
+            toast({
+                title: t('passwordChanged'),
+                description: t('passwordChangedSuccess'),
+            });
+            passwordForm.reset();
+        } catch (error: any) {
+            toast({
+                variant: 'destructive',
+                title: t('passwordChangeFailed'),
+                description: error.code === 'auth/wrong-password' 
+                    ? t('wrongPasswordError') 
+                    : error.message || t('unexpectedError'),
+            });
+        } finally {
+            setIsSavingPassword(false);
+        }
+    }
     
     const onPhotoSubmit = async (data: PhotoFormValues) => {
         if (!user || !auth.currentUser) {
@@ -151,7 +202,7 @@ export default function SettingsPage() {
             return;
         }
 
-        setIsSaving(true);
+        setIsSavingPhoto(true);
         try {
             const file = data.photo[0];
             const filePath = `user-avatars/${user.uid}/${file.name}`;
@@ -168,8 +219,8 @@ export default function SettingsPage() {
             await auth.currentUser.reload();
             
             toast({
-                title: 'Profile Picture Updated',
-                description: 'Your new avatar has been saved.',
+                title: t('profilePictureUpdated'),
+                description: t('avatarUpdatedSuccess'),
             });
 
             setIsPhotoDialogOpen(false);
@@ -182,7 +233,7 @@ export default function SettingsPage() {
                 description: error.message || 'Could not upload image.',
             });
         } finally {
-            setIsSaving(false);
+            setIsSavingPhoto(false);
         }
     }
 
@@ -196,8 +247,8 @@ export default function SettingsPage() {
                     dataTransfer.items.add(file);
                     photoForm.setValue('photo', dataTransfer.files);
                     toast({
-                        title: 'Image Pasted!',
-                        description: 'The image has been added and is ready to be saved.',
+                        title: t('imagePasted'),
+                        description: t('imagePastedReady'),
                     });
                 }
                 break;
@@ -210,7 +261,7 @@ export default function SettingsPage() {
         return (
             <div className="flex items-center justify-center p-8">
                 <Loader2 className="mr-2 h-8 w-8 animate-spin" />
-                <p>Loading settings...</p>
+                <p>{t('loadingSettings')}</p>
             </div>
         )
     }
@@ -232,7 +283,7 @@ export default function SettingsPage() {
                         <div className="flex flex-col items-center gap-4">
                             <div className="relative group">
                                 <Avatar className="h-32 w-32">
-                                    <AvatarImage src={user?.photoURL ?? undefined} alt="User Avatar" />
+                                    <AvatarImage src={user?.photoURL ?? undefined} alt={t('userAvatar')} />
                                     <AvatarFallback className="text-4xl">{getAvatarFallback()}</AvatarFallback>
                                 </Avatar>
                                 <Button
@@ -289,14 +340,72 @@ export default function SettingsPage() {
                                         </FormItem>
                                     )}
                                 />
-                                <Button type="submit" disabled={isSaving}>
-                                    {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                <Button type="submit" disabled={isSavingProfile}>
+                                    {isSavingProfile && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                     {t('saveChanges')}
                                 </Button>
                             </form>
                         </Form>
                     </CardContent>
                 </Card>
+                
+                 {!user?.isAnonymous && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>{t('password')}</CardTitle>
+                            <CardDescription>{t('passwordDescription')}</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Form {...passwordForm}>
+                                <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-4 max-w-lg">
+                                    <FormField
+                                        control={passwordForm.control}
+                                        name="currentPassword"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>{t('currentPassword')}</FormLabel>
+                                                <FormControl>
+                                                    <Input type="password" {...field} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={passwordForm.control}
+                                        name="newPassword"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>{t('newPassword')}</FormLabel>
+                                                <FormControl>
+                                                    <Input type="password" {...field} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                     <FormField
+                                        control={passwordForm.control}
+                                        name="confirmPassword"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>{t('confirmNewPassword')}</FormLabel>
+                                                <FormControl>
+                                                    <Input type="password" {...field} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <Button type="submit" disabled={isSavingPassword}>
+                                        {isSavingPassword && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                        {t('changePassword')}
+                                    </Button>
+                                </form>
+                            </Form>
+                        </CardContent>
+                    </Card>
+                 )}
 
                  <Card>
                     <CardHeader>
@@ -324,9 +433,9 @@ export default function SettingsPage() {
             <Dialog open={isPhotoDialogOpen} onOpenChange={setIsPhotoDialogOpen}>
                 <DialogContent onPaste={handlePaste}>
                     <DialogHeader>
-                        <DialogTitle>Change Profile Picture</DialogTitle>
+                        <DialogTitle>{t('changeProfilePicture')}</DialogTitle>
                         <DialogDescription>
-                            Upload a new image to update your avatar. You can also paste an image from your clipboard.
+                            {t('changeProfilePictureDescription')}
                         </DialogDescription>
                     </DialogHeader>
                     <Form {...photoForm}>
@@ -336,7 +445,7 @@ export default function SettingsPage() {
                                 name="photo"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Image</FormLabel>
+                                        <FormLabel>{t('image')}</FormLabel>
                                         <FormControl>
                                             <Input 
                                                 type="file" 
@@ -351,10 +460,10 @@ export default function SettingsPage() {
                         </form>
                     </Form>
                     <DialogFooter>
-                        <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                        <Button type="submit" form="photo-form" disabled={isSaving}>
-                            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Save Photo
+                        <DialogClose asChild><Button variant="outline">{t('cancel')}</Button></DialogClose>
+                        <Button type="submit" form="photo-form" disabled={isSavingPhoto}>
+                            {isSavingPhoto && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            {t('savePhoto')}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -363,3 +472,6 @@ export default function SettingsPage() {
     )
 
 }
+
+
+    
