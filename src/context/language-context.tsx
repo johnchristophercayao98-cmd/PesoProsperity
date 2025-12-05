@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, ReactNode, useMemo } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useMemo, useCallback } from 'react';
 import en from '@/locales/en.json';
 import ph from '@/locales/ph.json';
 
@@ -22,15 +22,15 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [locale, setLocale] = useState<Locale>('en');
 
-  const t = (key: string): string => {
+  const t = useCallback((key: string): string => {
     return translations[locale][key] || translations['en'][key] || key;
-  };
+  }, [locale]);
 
   const value = useMemo(() => ({
     locale,
     setLocale,
     t,
-  }), [locale]);
+  }), [locale, t]);
 
   return (
     <LanguageContext.Provider value={value}>

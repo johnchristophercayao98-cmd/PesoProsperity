@@ -29,12 +29,6 @@ import {
   DialogDescription,
   DialogFooter,
   DialogClose,
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
   Select,
   SelectContent,
   SelectItem,
@@ -62,6 +56,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from '@/components/ui';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { ResponsiveContainer, Pie, PieChart, Cell } from 'recharts';
 import { useToast } from '@/hooks/use-toast';
 import {
