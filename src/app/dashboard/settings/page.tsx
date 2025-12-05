@@ -2,7 +2,7 @@
 'use client';
 
 import { PageHeader } from "@/components/dashboard/page-header";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button, Input, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, Avatar, AvatarImage, AvatarFallback } from "@/components/ui";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button, Input, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, Avatar, AvatarImage, AvatarFallback, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useAuth, useFirestore, useUser, updateDocumentNonBlocking, useStorage, useDoc, useMemoFirebase } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
@@ -14,6 +14,7 @@ import { Loader2, Camera } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { Label } from "@/components/ui/label";
 
 
 const profileSchema = z.object({
@@ -296,6 +297,31 @@ export default function SettingsPage() {
                         </Form>
                     </CardContent>
                 </Card>
+
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Language &amp; Region</CardTitle>
+                        <CardDescription>Set your preferred language for the application.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-2 max-w-sm">
+                            <Label htmlFor="language">Language</Label>
+                            <Select defaultValue="en">
+                                <SelectTrigger id="language">
+                                    <SelectValue placeholder="Select language" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="en">English</SelectItem>
+                                    <SelectItem value="ph">Filipino</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <p className="text-sm text-muted-foreground pt-2">
+                                Note: Language switching is currently a visual placeholder. Full functionality will be implemented soon.
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
+
             </div>
 
             <Dialog open={isPhotoDialogOpen} onOpenChange={setIsPhotoDialogOpen}>
