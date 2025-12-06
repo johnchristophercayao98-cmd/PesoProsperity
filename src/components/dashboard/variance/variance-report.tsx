@@ -165,7 +165,12 @@ export function VarianceReport() {
     const { income = [], expenses = [] } = budget || {};
     const overspentItems = expenses.filter(item => item.actual > item.budgeted);
 
-    const varianceData = expenses.map(item => ({
+    const incomeVarianceData = income.map(item => ({
+        name: item.name,
+        variance: item.actual - item.budgeted,
+    }));
+
+    const expenseVarianceData = expenses.map(item => ({
         name: item.name,
         variance: item.budgeted - item.actual,
     }));
@@ -232,20 +237,20 @@ export function VarianceReport() {
             <div className="grid md:grid-cols-2 gap-6">
                  <Card>
                     <CardHeader>
-                        <CardTitle>Expense Variance Chart</CardTitle>
+                        <CardTitle>Income Variance Chart</CardTitle>
                         <CardDescription>For {format(selectedDate, "MMMM yyyy")}</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={chartConfig} className="h-[300px] w-full">
                            <ResponsiveContainer>
-                             <BarChart data={varianceData} layout="vertical" margin={{left: 10}}>
+                             <BarChart data={incomeVarianceData} layout="vertical" margin={{left: 10}}>
                                 <CartesianGrid horizontal={false} />
                                 <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} tickMargin={10} width={80} />
                                 <XAxis dataKey="variance" type="number" hide />
                                 <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
                                 <Bar dataKey="variance" radius={5}>
-                                  {varianceData.map((entry, index) => (
-                                      <Cell key={`cell-${index}`} fill={entry.variance < 0 ? 'hsl(var(--destructive))' : 'hsl(var(--chart-2))'} />
+                                  {incomeVarianceData.map((entry, index) => (
+                                      <Cell key={`cell-${index}`} fill={entry.variance >= 0 ? 'hsl(var(--chart-2))' : 'hsl(var(--destructive))'} />
                                   ))}
                                 </Bar>
                             </BarChart>
@@ -253,36 +258,27 @@ export function VarianceReport() {
                         </ChartContainer>
                     </CardContent>
                 </Card>
-                <Card>
+                 <Card>
                     <CardHeader>
-                        <CardTitle>Summary</CardTitle>
+                        <CardTitle>Expense Variance Chart</CardTitle>
                         <CardDescription>For {format(selectedDate, "MMMM yyyy")}</CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="flex items-center justify-between p-4 rounded-md bg-secondary/50">
-                            <div>
-                                <p className="text-sm text-muted-foreground">Total Budgeted</p>
-                                <p className="text-2xl font-bold">₱{ (income.reduce((a, b) => a + b.budgeted, 0) - expenses.reduce((a, b) => a + b.budgeted, 0)).toLocaleString() }</p>
-                            </div>
-                            <div className="flex items-center justify-between p-4 rounded-md bg-secondary/50">
-                                <p className="text-sm text-muted-foreground">Total Actual</p>
-                                <p className="text-2xl font-bold">₱{ (income.reduce((a, b) => a + b.actual, 0) - expenses.reduce((a, b) => a + b.actual, 0)).toLocaleString() }</p>
-                            </div>
-                        </div>
-                         <div className="flex items-center p-4 rounded-md border">
-                            <TrendingUp className="h-6 w-6 mr-4 text-green-600"/>
-                            <div>
-                                <p className="text-sm text-muted-foreground">Favorable Variances (Savings)</p>
-                                <p className="text-lg font-semibold">₱{expenses.filter(i => i.budgeted > i.actual).reduce((acc, i) => acc + (i.budgeted - i.actual), 0).toLocaleString()}</p>
-                            </div>
-                        </div>
-                        <div className="flex items-center p-4 rounded-md border">
-                            <TrendingDown className="h-6 w-6 mr-4 text-red-600"/>
-                             <div>
-                                <p className="text-sm text-muted-foreground">Unfavorable Variances (Overspent)</p>
-                                <p className="text-lg font-semibold">₱{expenses.filter(i => i.budgeted < i.actual).reduce((acc, i) => acc + (i.actual - i.budgeted), 0).toLocaleString()}</p>
-                            </div>
-                        </div>
+                    <CardContent>
+                        <ChartContainer config={chartConfig} className="h-[300px] w-full">
+                           <ResponsiveContainer>
+                             <BarChart data={expenseVarianceData} layout="vertical" margin={{left: 10}}>
+                                <CartesianGrid horizontal={false} />
+                                <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} tickMargin={10} width={80} />
+                                <XAxis dataKey="variance" type="number" hide />
+                                <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
+                                <Bar dataKey="variance" radius={5}>
+                                  {expenseVarianceData.map((entry, index) => (
+                                      <Cell key={`cell-${index}`} fill={entry.variance >= 0 ? 'hsl(var(--chart-2))' : 'hsl(var(--destructive))'} />
+                                  ))}
+                                </Bar>
+                            </BarChart>
+                           </ResponsiveContainer>
+                        </ChartContainer>
                     </CardContent>
                 </Card>
             </div>
