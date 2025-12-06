@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -56,7 +55,14 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from '@/components/ui';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
 import { ResponsiveContainer, Pie, PieChart, Cell } from 'recharts';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -74,7 +80,20 @@ import {
 } from '@/ai/flows/automated-budget-suggestions';
 import type { Budget, BudgetCategory } from '@/lib/types';
 import type { Transaction, RecurringTransaction } from '@/lib/types';
-import { format, startOfMonth, endOfMonth, isWithinInterval, addDays, addWeeks, addMonths, addYears, isAfter, isBefore, isEqual, startOfDay } from 'date-fns';
+import {
+  format,
+  startOfMonth,
+  endOfMonth,
+  isWithinInterval,
+  addDays,
+  addWeeks,
+  addMonths,
+  addYears,
+  isAfter,
+  isBefore,
+  isEqual,
+  startOfDay,
+} from 'date-fns';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -159,12 +178,20 @@ const generateTransactionInstances = (
 
     const generationEndDate = isBefore(periodEnd, today) ? periodEnd : today;
 
-    while (isBefore(currentDate, generationEndDate) || isEqual(currentDate, generationEndDate)) {
+    while (
+      isBefore(currentDate, generationEndDate) ||
+      isEqual(currentDate, generationEndDate)
+    ) {
       if (endDate && isAfter(currentDate, endDate)) {
         break;
       }
 
-      if(isWithinInterval(currentDate, { start: periodStart, end: generationEndDate })) {
+      if (
+        isWithinInterval(currentDate, {
+          start: periodStart,
+          end: generationEndDate,
+        })
+      ) {
         instances.push({
           ...rt,
           id: `${rt.id}-${currentDate.toISOString()}`,
@@ -172,7 +199,7 @@ const generateTransactionInstances = (
           description: `${rt.description} (Recurring)`,
         });
       }
-      
+
       if (isAfter(currentDate, generationEndDate)) break;
 
       switch (rt.frequency) {
@@ -211,7 +238,10 @@ export function BudgetTabs() {
     docId: string;
     name: string;
   } | null>(null);
-  const [editingBudgetItem, setEditingBudgetItem] = useState<{item: BudgetCategory, type: 'income' | 'expense'} | null>(null);
+  const [editingBudgetItem, setEditingBudgetItem] = useState<{
+    item: BudgetCategory;
+    type: 'income' | 'expense';
+  } | null>(null);
 
   const firestore = useFirestore();
   const { user } = useUser();
@@ -234,14 +264,20 @@ export function BudgetTabs() {
     if (!user) return null;
     return collection(firestore, 'users', user.uid, 'expenses');
   }, [firestore, user]);
-  
+
   const recurringTransactionsQuery = useMemoFirebase(() => {
     if (!user) return null;
     return collection(firestore, 'users', user.uid, 'recurringTransactions');
   }, [firestore, user]);
 
-  const { data: singleTransactions, isLoading: isSingleTransactionsLoading } = useCollection<Transaction>(singleTransactionsQuery);
-  const { data: recurringTransactions, isLoading: isRecurringTransactionsLoading } = useCollection<RecurringTransaction>(recurringTransactionsQuery);
+  const {
+    data: singleTransactions,
+    isLoading: isSingleTransactionsLoading,
+  } = useCollection<Transaction>(singleTransactionsQuery);
+  const {
+    data: recurringTransactions,
+    isLoading: isRecurringTransactionsLoading,
+  } = useCollection<RecurringTransaction>(recurringTransactionsQuery);
 
   const budget = useMemo(() => {
     const baseBudget = budgets?.[0] ?? null;
@@ -249,9 +285,16 @@ export function BudgetTabs() {
 
     const monthStart = startOfMonth(selectedDate);
     const monthEnd = endOfMonth(selectedDate);
-    
-    const recurringInstances = generateTransactionInstances(recurringTransactions || [], monthStart, monthEnd);
-    const allTransactions = [...(singleTransactions || []), ...recurringInstances];
+
+    const recurringInstances = generateTransactionInstances(
+      recurringTransactions || [],
+      monthStart,
+      monthEnd
+    );
+    const allTransactions = [
+      ...(singleTransactions || []),
+      ...recurringInstances,
+    ];
 
     const monthlyTransactions = allTransactions.filter((t) => {
       const transactionDate = toDate(t.date);
@@ -320,19 +363,27 @@ export function BudgetTabs() {
 
     if (budget && editingBudgetItem) {
       // Editing existing item
-      const updatedCategories = (budget[editingBudgetItem.type] || []).map(cat => {
-        if (cat.name === editingBudgetItem.item.name) {
-          return { ...cat, name: data.category, budgeted: data.budgeted };
+      const updatedCategories = (budget[editingBudgetItem.type] || []).map(
+        (cat) => {
+          if (cat.name === editingBudgetItem.item.name) {
+            return { ...cat, name: data.category, budgeted: data.budgeted };
+          }
+          return cat;
         }
-        return cat;
-      });
-      
+      );
+
       const updatePayload = {
         ...budget,
-        [editingBudgetItem.type]: updatedCategories
+        [editingBudgetItem.type]: updatedCategories,
       };
 
-      const budgetRef = doc(firestore, 'users', user.uid, 'budgets', budget.id);
+      const budgetRef = doc(
+        firestore,
+        'users',
+        user.uid,
+        'budgets',
+        budget.id
+      );
       updateDocumentNonBlocking(budgetRef, {
         income: updatePayload.income.map(({ actual, ...rest }) => rest), // Don't save actual
         expenses: updatePayload.expenses.map(({ actual, ...rest }) => rest),
@@ -342,7 +393,6 @@ export function BudgetTabs() {
         title: 'Budget Item Updated!',
         description: `${data.category} has been updated.`,
       });
-
     } else {
       // Adding new item
       const newCategory = {
@@ -350,20 +400,38 @@ export function BudgetTabs() {
         budgeted: data.budgeted,
       };
 
-      let updatedIncome = budget?.income ? [...budget.income.map(({ actual, ...rest }) => rest)] : [];
-      let updatedExpenses = budget?.expenses ? [...budget.expenses.map(({ actual, ...rest }) => rest)] : [];
+      let updatedIncome = budget?.income
+        ? [...budget.income.map(({ actual, ...rest }) => rest)]
+        : [];
+      let updatedExpenses = budget?.expenses
+        ? [...budget.expenses.map(({ actual, ...rest }) => rest)]
+        : [];
 
       if (data.type === 'income') {
         updatedIncome.push(newCategory);
       } else {
         updatedExpenses.push(newCategory);
       }
-      
+
       if (budget) {
-        const budgetRef = doc(firestore, 'users', user.uid, 'budgets', budget.id);
-        updateDocumentNonBlocking(budgetRef, { income: updatedIncome, expenses: updatedExpenses });
+        const budgetRef = doc(
+          firestore,
+          'users',
+          user.uid,
+          'budgets',
+          budget.id
+        );
+        updateDocumentNonBlocking(budgetRef, {
+          income: updatedIncome,
+          expenses: updatedExpenses,
+        });
       } else {
-        const budgetCollRef = collection(firestore, 'users', user.uid, 'budgets');
+        const budgetCollRef = collection(
+          firestore,
+          'users',
+          user.uid,
+          'budgets'
+        );
         addDocumentNonBlocking(budgetCollRef, {
           userId: user.uid,
           name: `${format(selectedDate, 'MMMM yyyy')} Budget`,
@@ -373,7 +441,7 @@ export function BudgetTabs() {
           expenses: data.type === 'expense' ? [newCategory] : [],
         });
       }
-       toast({
+      toast({
         title: 'Budget Item Added!',
         description: `${data.category} has been added to your budget for ${format(
           selectedDate,
@@ -423,7 +491,10 @@ export function BudgetTabs() {
       const content = await file.text();
       const result = await suggestMonthlyBudget({ financialData: content });
 
-      if (result.suggestedBudget && JSON.parse(result.suggestedBudget).error) {
+      if (
+        result.summary &&
+        result.summary.toLowerCase().includes('could not be processed')
+      ) {
         toast({
           variant: 'destructive',
           title: 'AI Analysis Error',
@@ -454,9 +525,11 @@ export function BudgetTabs() {
     setFileName(null);
     setAiResult(null);
     // Reset the file input element
-    const fileInput = document.getElementById('financial-data-file') as HTMLInputElement;
+    const fileInput = document.getElementById(
+      'financial-data-file'
+    ) as HTMLInputElement;
     if (fileInput) {
-        fileInput.value = '';
+      fileInput.value = '';
     }
   };
 
@@ -519,7 +592,10 @@ export function BudgetTabs() {
                       <DropdownMenuItem
                         className="text-destructive"
                         onClick={() =>
-                          setItemToDelete({ docId: budget!.id, name: item.name })
+                          setItemToDelete({
+                            docId: budget!.id,
+                            name: item.name,
+                          })
                         }
                       >
                         Delete
@@ -536,10 +612,12 @@ export function BudgetTabs() {
   );
 
   const renderPieChart = (title: string, data: any[]) => {
-    const chartData = data.filter((item) => item.actual > 0).map((item) => ({
-      name: item.name,
-      value: item.actual,
-    }));
+    const chartData = data
+      .filter((item) => item.actual > 0)
+      .map((item) => ({
+        name: item.name,
+        value: item.actual,
+      }));
     if (chartData.length === 0) return null;
 
     const chartConfig = data.reduce((acc, item, index) => {
@@ -585,6 +663,32 @@ export function BudgetTabs() {
       </Card>
     );
   };
+
+  const renderAiSuggestionTable = (title: string, data: any[]) => (
+    <div className="mb-6">
+      <h3 className="text-lg font-semibold mb-2">{title}</h3>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Category</TableHead>
+            <TableHead className="text-right">Suggested Amount</TableHead>
+            <TableHead>Recommendation</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {data.map((item) => (
+            <TableRow key={item.category}>
+              <TableCell className="font-medium">{item.category}</TableCell>
+              <TableCell className="text-right">
+                ₱{item.amount.toLocaleString()}
+              </TableCell>
+              <TableCell className="text-muted-foreground">{item.recommendation}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
 
   return (
     <>
@@ -632,7 +736,9 @@ export function BudgetTabs() {
               </div>
             </CardHeader>
             <CardContent>
-              {isBudgetsLoading || isSingleTransactionsLoading || isRecurringTransactionsLoading ? (
+              {isBudgetsLoading ||
+              isSingleTransactionsLoading ||
+              isRecurringTransactionsLoading ? (
                 <div className="flex items-center justify-center p-8">
                   <Loader2 className="mr-2 h-8 w-8 animate-spin" />
                   <p>Loading budget...</p>
@@ -714,35 +820,31 @@ export function BudgetTabs() {
               )}
               {fileName && !isLoading && (
                 <div className="flex items-center justify-between p-3 rounded-md border bg-secondary/50">
-                    <div className="flex items-center gap-2">
-                        <FileText className="h-5 w-5 text-primary" />
-                        <span className="text-sm font-medium">{fileName}</span>
-                    </div>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                        onClick={handleRemoveFile}
-                    >
-                        <X className="h-4 w-4" />
-                        <span className="sr-only">Remove file</span>
-                    </Button>
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-primary" />
+                    <span className="text-sm font-medium">{fileName}</span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={handleRemoveFile}
+                  >
+                    <X className="h-4 w-4" />
+                    <span className="sr-only">Remove file</span>
+                  </Button>
                 </div>
               )}
-              {aiResult && aiResult.suggestedBudget && (
+              {aiResult && (
                 <Card className="bg-secondary/50">
                   <CardHeader>
                     <CardTitle>Suggested Budget</CardTitle>
-                    <CardDescription>{aiResult.explanation}</CardDescription>
+                    <CardDescription>{aiResult.summary}</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <pre className="p-4 bg-background rounded-md text-sm overflow-x-auto">
-                      {JSON.stringify(
-                        JSON.parse(aiResult.suggestedBudget),
-                        null,
-                        2
-                      )}
-                    </pre>
+                    {renderAiSuggestionTable('Income', aiResult.income)}
+                    {renderAiSuggestionTable('Expenses', aiResult.expenses)}
+                    {renderAiSuggestionTable('Savings', aiResult.savings)}
                   </CardContent>
                 </Card>
               )}
@@ -757,10 +859,14 @@ export function BudgetTabs() {
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{editingBudgetItem ? 'Edit' : 'Add'} Budget Item</DialogTitle>
+            <DialogTitle>
+              {editingBudgetItem ? 'Edit' : 'Add'} Budget Item
+            </DialogTitle>
             <DialogDescription>
-              {editingBudgetItem ? 'Update this item' : 'Add a new income or expense category'} to your budget for{' '}
-              {format(selectedDate, 'MMMM yyyy')}.
+              {editingBudgetItem
+                ? 'Update this item'
+                : 'Add a new income or expense category'}{' '}
+              to your budget for {format(selectedDate, 'MMMM yyyy')}.
             </DialogDescription>
           </DialogHeader>
           <Form {...budgetItemForm}>
@@ -842,7 +948,9 @@ export function BudgetTabs() {
                 Cancel
               </Button>
             </DialogClose>
-            <Button type="submit" form="budgetItem-form">{editingBudgetItem ? 'Save Changes' : 'Add Item'}</Button>
+            <Button type="submit" form="budgetItem-form">
+              {editingBudgetItem ? 'Save Changes' : 'Add Item'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
