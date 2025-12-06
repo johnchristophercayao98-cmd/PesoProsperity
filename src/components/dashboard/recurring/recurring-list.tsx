@@ -283,187 +283,185 @@ export function RecurringList() {
               Add Recurring
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md flex flex-col max-h-[90vh]">
+          <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>{editingTransaction ? 'Edit' : 'Add'} Recurring Transaction</DialogTitle>
               <DialogDescription>
                 Set up a new automatic transaction.
               </DialogDescription>
             </DialogHeader>
-            <div className="flex-1 overflow-y-auto -mr-6 pr-6">
-              <Form {...form}>
-                <form
-                  id="recurring-form"
-                  onSubmit={form.handleSubmit(onSubmit)}
-                  className="space-y-4"
-                >
+            <Form {...form}>
+              <form
+                id="recurring-form"
+                onSubmit={form.handleSubmit(onSubmit)}
+                className="space-y-4"
+              >
+                 <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Description</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="e.g., Office Rent, Client Retainer"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="amount"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Amount (₱)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            placeholder="25000"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                    <FormField
-                      control={form.control}
-                      name="description"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Description</FormLabel>
+                    control={form.control}
+                    name="category"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Type</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
                           <FormControl>
-                            <Input
-                              placeholder="e.g., Office Rent, Client Retainer"
-                              {...field}
-                            />
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select type" />
+                            </SelectTrigger>
                           </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  <div className="grid grid-cols-2 gap-4">
+                          <SelectContent>
+                            <SelectItem value="Income">Income</SelectItem>
+                            <SelectItem value="Expense">Expense</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                 <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
-                      name="amount"
+                      name="subcategory"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Amount (₱)</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              placeholder="25000"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                     <FormField
-                      control={form.control}
-                      name="category"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Type</FormLabel>
+                          <FormLabel>Category</FormLabel>
                           <Select
                             onValueChange={field.onChange}
-                            defaultValue={field.value}
+                            value={field.value}
                           >
                             <FormControl>
                               <SelectTrigger>
-                                <SelectValue placeholder="Select type" />
+                                <SelectValue placeholder="Select a category" />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="Income">Income</SelectItem>
-                              <SelectItem value="Expense">Expense</SelectItem>
+                              {(category === 'Income'
+                                ? incomeCategories
+                                : expenseCategories
+                              ).map((cat) => (
+                                <SelectItem key={cat} value={cat}>
+                                  {cat}
+                                </SelectItem>
+                              ))}
                             </SelectContent>
                           </Select>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-                  </div>
-                   <div className="grid grid-cols-2 gap-4">
-                      <FormField
+                     <FormField
                         control={form.control}
-                        name="subcategory"
+                        name="frequency"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Category</FormLabel>
+                            <FormLabel>Frequency</FormLabel>
                             <Select
                               onValueChange={field.onChange}
-                              value={field.value}
+                              defaultValue={field.value}
                             >
                               <FormControl>
                                 <SelectTrigger>
-                                  <SelectValue placeholder="Select a category" />
+                                  <SelectValue placeholder="Select frequency" />
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                {(category === 'Income'
-                                  ? incomeCategories
-                                  : expenseCategories
-                                ).map((cat) => (
-                                  <SelectItem key={cat} value={cat}>
-                                    {cat}
-                                  </SelectItem>
-                                ))}
+                                <SelectItem value="daily">Daily</SelectItem>
+                                <SelectItem value="weekly">Weekly</SelectItem>
+                                <SelectItem value="monthly">Monthly</SelectItem>
+                                <SelectItem value="yearly">Yearly</SelectItem>
                               </SelectContent>
                             </Select>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
-                       <FormField
-                          control={form.control}
-                          name="frequency"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Frequency</FormLabel>
-                              <Select
-                                onValueChange={field.onChange}
-                                defaultValue={field.value}
-                              >
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select frequency" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  <SelectItem value="daily">Daily</SelectItem>
-                                  <SelectItem value="weekly">Weekly</SelectItem>
-                                  <SelectItem value="monthly">Monthly</SelectItem>
-                                  <SelectItem value="yearly">Yearly</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
+                </div>
+                <FormField
+                    control={form.control}
+                    name="paymentMethod"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Payment Method</FormLabel>
+                        <FormControl>
+                        <Input
+                            placeholder="e.g., Bank Transfer"
+                            {...field}
                         />
-                  </div>
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+                <div className="grid grid-cols-2 gap-4">
                   <FormField
-                      control={form.control}
-                      name="paymentMethod"
-                      render={({ field }) => (
-                      <FormItem>
-                          <FormLabel>Payment Method</FormLabel>
-                          <FormControl>
-                          <Input
-                              placeholder="e.g., Bank Transfer"
-                              {...field}
-                          />
-                          </FormControl>
-                          <FormMessage />
+                    control={form.control}
+                    name="startDate"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col">
+                        <FormLabel>Start Date</FormLabel>
+                        <DatePicker
+                          date={field.value}
+                          setDate={field.onChange}
+                        />
+                        <FormMessage />
                       </FormItem>
-                      )}
+                    )}
                   />
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="startDate"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-col">
-                          <FormLabel>Start Date</FormLabel>
-                          <DatePicker
-                            date={field.value}
-                            setDate={field.onChange}
-                          />
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="endDate"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-col">
-                          <FormLabel>End Date (Optional)</FormLabel>
-                          <DatePicker
-                            date={field.value}
-                            setDate={field.onChange}
-                          />
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </form>
-              </Form>
-            </div>
-            <DialogFooter className="pt-4">
+                  <FormField
+                    control={form.control}
+                    name="endDate"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col">
+                        <FormLabel>End Date (Optional)</FormLabel>
+                        <DatePicker
+                          date={field.value}
+                          setDate={field.onChange}
+                        />
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </form>
+            </Form>
+            <DialogFooter>
               <DialogClose asChild>
                 <Button type="button" variant="secondary">
                   {t('cancel')}
