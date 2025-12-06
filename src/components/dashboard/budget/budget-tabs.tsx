@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -554,7 +555,7 @@ export function BudgetTabs() {
         </TableHeader>
         <TableBody>
           {data.map((item) => {
-            const variance = item.budgeted - item.actual;
+            const variance = type === 'income' ? item.actual - item.budgeted : item.budgeted - item.actual;
             return (
               <TableRow key={item.name}>
                 <TableCell>{item.name}</TableCell>
