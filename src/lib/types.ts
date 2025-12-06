@@ -1,3 +1,4 @@
+
 import { Timestamp } from 'firebase/firestore';
 
 export type Transaction = {
@@ -36,11 +37,11 @@ export type FinancialGoal = {
 export type Debt = {
   id: string;
   userId: string;
-  creditor: string;
-  totalAmount: number;
-  amountPaid: number;
+  name: string;
+  principalAmount: number;
   interestRate: number;
-  nextPaymentDue: Date | Timestamp;
+  minimumPayment: number;
+  currentBalance: number;
 };
 
 export type BudgetCategory = {
@@ -58,3 +59,5 @@ export type Budget = {
   income: BudgetCategory[];
   expenses: BudgetCategory[];
 };
+
+    

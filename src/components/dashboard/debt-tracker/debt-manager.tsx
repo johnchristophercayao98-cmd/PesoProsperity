@@ -86,11 +86,11 @@ const COLORS = [
 ];
 
 const debtSchema = z.object({
-  creditor: z.string().min(2, 'Creditor name is required.'),
-  totalAmount: z.coerce.number().min(1, 'Total amount must be greater than 0.'),
-  amountPaid: z.coerce.number().min(0).optional().default(0),
+  name: z.string().min(2, 'Creditor name is required.'),
+  principalAmount: z.coerce.number().min(1, 'Total amount must be greater than 0.'),
+  currentBalance: z.coerce.number().min(0).optional().default(0),
   interestRate: z.coerce.number().min(0),
-  nextPaymentDue: z.date({ required_error: 'Next payment date is required.' }),
+  minimumPayment: z.coerce.number().min(0),
 });
 type DebtFormData = z.infer<typeof debtSchema>;
 
@@ -119,11 +119,11 @@ export function DebtManager() {
   const addForm = useForm<DebtFormData>({ 
     resolver: zodResolver(debtSchema),
     defaultValues: {
-      creditor: '',
-      totalAmount: 0,
-      amountPaid: 0,
+      name: '',
+      principalAmount: 0,
+      currentBalance: 0,
       interestRate: 0,
-      nextPaymentDue: new Date(),
+      minimumPayment: 0,
     }
   });
   const payForm = useForm<PaymentFormData>({
@@ -144,11 +144,11 @@ export function DebtManager() {
   useEffect(() => {
     if (editingDebt) {
         addForm.reset({
-            creditor: editingDebt.creditor,
-            totalAmount: editingDebt.totalAmount,
-            amountPaid: editingDebt.amountPaid,
+            name: editingDebt.name,
+            principalAmount: editingDebt.principalAmount,
+            currentBalance: editingDebt.currentBalance,
             interestRate: editingDebt.interestRate,
-            nextPaymentDue: toDate(editingDebt.nextPaymentDue)!
+            minimumPayment: editingDebt.minimumPayment,
         });
         setIsAddDialogOpen(true);
     }
@@ -156,16 +156,20 @@ export function DebtManager() {
 
   const handleAddDebt = (data: DebtFormData) => {
     if (!user) return;
+    const newDebtData = { ...data };
     if (editingDebt) {
         const debtRef = doc(firestore, 'users', user.uid, 'debts', editingDebt.id);
-        updateDocumentNonBlocking(debtRef, data);
-        toast({ title: 'Debt Updated!', description: `Debt to ${data.creditor} has been updated.` });
+        updateDocumentNonBlocking(debtRef, newDebtData);
+        toast({ title: 'Debt Updated!', description: `Debt to ${data.name} has been updated.` });
     } else {
+        if (typeof data.currentBalance === 'undefined' || data.currentBalance === 0) {
+            newDebtData.currentBalance = data.principalAmount;
+        }
         addDocumentNonBlocking(collection(firestore, 'users', user.uid, 'debts'), {
             userId: user.uid,
-            ...data
+            ...newDebtData
         });
-        toast({ title: 'Debt Added!', description: `Debt to ${data.creditor} has been recorded.` });
+        toast({ title: 'Debt Added!', description: `Debt to ${data.name} has been recorded.` });
     }
     
     addForm.reset();
@@ -175,26 +179,26 @@ export function DebtManager() {
 
   const handleRecordPayment = (data: PaymentFormData) => {
     if (!selectedDebt || !user) return;
-    const newAmountPaid = selectedDebt.amountPaid + data.amount;
+    const newBalance = selectedDebt.currentBalance - data.amount;
     const debtRef = doc(firestore, 'users', user.uid, 'debts', selectedDebt.id);
     updateDocumentNonBlocking(debtRef, {
-        amountPaid: Math.min(newAmountPaid, selectedDebt.totalAmount)
+        currentBalance: Math.max(0, newBalance)
     });
 
     const expensesCollRef = collection(firestore, 'users', user.uid, 'expenses');
     addDocumentNonBlocking(expensesCollRef, {
       userId: user.uid,
       date: new Date(),
-      description: `Debt payment: ${selectedDebt.creditor}`,
+      description: `Debt payment: ${selectedDebt.name}`,
       amount: data.amount,
       category: 'Expense',
       subcategory: 'Debt Repayment', 
-      paymentMethod: 'Bank Transfer', // You might want to make this selectable in the future
+      paymentMethod: 'Bank Transfer',
     });
     
     toast({
       title: 'Payment Recorded!',
-      description: `Payment of ₱${data.amount} for ${selectedDebt.creditor} recorded.`,
+      description: `Payment of ₱${data.amount} for ${selectedDebt.name} recorded.`,
     });
     payForm.reset();
     setIsPayDialogOpen(false);
@@ -207,7 +211,7 @@ export function DebtManager() {
     deleteDocumentNonBlocking(debtRef);
     toast({
         title: "Debt Deleted",
-        description: `The debt to "${debtToDelete.creditor}" has been removed.`
+        description: `The debt to "${debtToDelete.name}" has been removed.`
     })
     setDebtToDelete(null);
   }
@@ -215,8 +219,8 @@ export function DebtManager() {
   const debtChartData =
     debts
       ?.map((d) => ({
-        name: d.creditor,
-        value: d.totalAmount - d.amountPaid,
+        name: d.name,
+        value: d.currentBalance,
       }))
       .filter((d) => d.value > 0) || [];
   const debtChartConfig = debtChartData.reduce((acc, item, index) => {
@@ -250,7 +254,7 @@ export function DebtManager() {
                     <TableHead>Creditor</TableHead>
                     <TableHead>Remaining Balance</TableHead>
                     <TableHead className="w-[200px]">Progress</TableHead>
-                    <TableHead>Next Payment</TableHead>
+                    <TableHead>Minimum Payment</TableHead>
                     <TableHead>
                       <span className="sr-only">Actions</span>
                     </TableHead>
@@ -258,14 +262,13 @@ export function DebtManager() {
                 </TableHeader>
                 <TableBody>
                   {debts && debts.map((debt) => {
-                    const remaining = debt.totalAmount - debt.amountPaid;
+                    const remaining = debt.currentBalance;
                     const progress =
-                      (debt.amountPaid / debt.totalAmount) * 100;
-                    const nextPaymentDate = toDate(debt.nextPaymentDue);
+                      ((debt.principalAmount - debt.currentBalance) / debt.principalAmount) * 100;
                     return (
                       <TableRow key={debt.id}>
                         <TableCell className="font-medium">
-                          {debt.creditor}
+                          {debt.name}
                         </TableCell>
                         <TableCell>
                           ₱{remaining > 0 ? remaining.toLocaleString() : 'Paid Off'}
@@ -274,9 +277,7 @@ export function DebtManager() {
                           <Progress value={progress} />
                         </TableCell>
                         <TableCell>
-                          {remaining > 0 && nextPaymentDate
-                            ? format(nextPaymentDate, 'MMM d, yyyy')
-                            : '-'}
+                          ₱{debt.minimumPayment.toLocaleString()}
                         </TableCell>
                         <TableCell>
                           <DropdownMenu>
@@ -300,7 +301,7 @@ export function DebtManager() {
                                 onClick={() => setDebtToDelete(debt)}
                               >
                                 Delete
-                              DropdownMenuItem>
+                              </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
@@ -354,7 +355,7 @@ export function DebtManager() {
             <AlertDialogHeader>
                 <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    This will permanently delete the debt to "{debtToDelete?.creditor}".
+                    This will permanently delete the debt to "{debtToDelete?.name}".
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -381,7 +382,7 @@ export function DebtManager() {
             >
                 <FormField
                   control={addForm.control}
-                  name="creditor"
+                  name="name"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Creditor</FormLabel>
@@ -394,7 +395,7 @@ export function DebtManager() {
                 />
                 <FormField
                   control={addForm.control}
-                  name="totalAmount"
+                  name="principalAmount"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Total Amount (₱)</FormLabel>
@@ -420,12 +421,12 @@ export function DebtManager() {
                 />
                 <FormField
                   control={addForm.control}
-                  name="nextPaymentDue"
+                  name="minimumPayment"
                   render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Next Payment Due</FormLabel>
+                     <FormItem>
+                      <FormLabel>Minimum Payment (₱)</FormLabel>
                       <FormControl>
-                        <DatePicker date={field.value} setDate={field.onChange} />
+                        <Input type="number" placeholder="5000" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -453,7 +454,7 @@ export function DebtManager() {
               Payment
             </DialogTitle>
             <DialogDescription>
-              For your debt to {selectedDebt?.creditor}.
+              For your debt to {selectedDebt?.name}.
             </DialogDescription>
           </DialogHeader>
           <Form {...payForm}>
@@ -494,5 +495,4 @@ export function DebtManager() {
     </>
   );
 }
-
     
