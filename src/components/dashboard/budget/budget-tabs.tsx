@@ -755,7 +755,7 @@ export function BudgetTabs() {
         open={isAddBudgetItemDialogOpen}
         onOpenChange={handleDialogOpenChange}
       >
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md flex flex-col max-h-[90vh]">
           <DialogHeader>
             <DialogTitle>{editingBudgetItem ? 'Edit' : 'Add'} Budget Item</DialogTitle>
             <DialogDescription>
@@ -763,86 +763,88 @@ export function BudgetTabs() {
               {format(selectedDate, 'MMMM yyyy')}.
             </DialogDescription>
           </DialogHeader>
-          <Form {...budgetItemForm}>
-            <form
-              onSubmit={budgetItemForm.handleSubmit(handleAddBudgetItem)}
-              className="space-y-4"
-            >
-              <FormField
-                control={budgetItemForm.control}
-                name="type"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Type</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                      disabled={!!editingBudgetItem}
-                    >
+          <div className="flex-1 overflow-y-auto -mr-6 pr-6">
+            <Form {...budgetItemForm}>
+              <form
+                onSubmit={budgetItemForm.handleSubmit(handleAddBudgetItem)}
+                className="space-y-4"
+              >
+                <FormField
+                  control={budgetItemForm.control}
+                  name="type"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Type</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        disabled={!!editingBudgetItem}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="income">Income</SelectItem>
+                          <SelectItem value="expense">Expense</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={budgetItemForm.control}
+                  name="category"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Category</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a category" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {(itemType === 'income'
+                            ? incomeCategories
+                            : expenseCategories
+                          ).map((cat) => (
+                            <SelectItem key={cat} value={cat}>
+                              {cat}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={budgetItemForm.control}
+                  name="budgeted"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Budgeted (₱)</FormLabel>
                       <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select type" />
-                        </SelectTrigger>
+                        <Input type="number" placeholder="10000" {...field} />
                       </FormControl>
-                      <SelectContent>
-                        <SelectItem value="income">Income</SelectItem>
-                        <SelectItem value="expense">Expense</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={budgetItemForm.control}
-                name="category"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Category</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a category" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {(itemType === 'income'
-                          ? incomeCategories
-                          : expenseCategories
-                        ).map((cat) => (
-                          <SelectItem key={cat} value={cat}>
-                            {cat}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={budgetItemForm.control}
-                name="budgeted"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Budgeted (₱)</FormLabel>
-                    <FormControl>
-                      <Input type="number" placeholder="10000" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <DialogFooter>
-                <DialogClose asChild>
-                  <Button type="button" variant="secondary">
-                    Cancel
-                  </Button>
-                </DialogClose>
-                <Button type="submit">{editingBudgetItem ? 'Save Changes' : 'Add Item'}</Button>
-              </DialogFooter>
-            </form>
-          </Form>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </form>
+            </Form>
+          </div>
+          <DialogFooter className="pt-4">
+            <DialogClose asChild>
+              <Button type="button" variant="secondary">
+                Cancel
+              </Button>
+            </DialogClose>
+            <Button type="submit" form="budgetItem-form">{editingBudgetItem ? 'Save Changes' : 'Add Item'}</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
