@@ -1,4 +1,5 @@
 import { config } from 'dotenv';
 config();
 
-import '@/ai/flows/proactive-budget-optimization.ts';
+// The Genkit development server will automatically discover and run flows.
+// You do not need to explicitly import them here.
