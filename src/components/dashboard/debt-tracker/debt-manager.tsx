@@ -179,7 +179,18 @@ export function DebtManager() {
     const debtRef = doc(firestore, 'users', user.uid, 'debts', selectedDebt.id);
     updateDocumentNonBlocking(debtRef, {
         amountPaid: Math.min(newAmountPaid, selectedDebt.totalAmount)
-    })
+    });
+
+    const expensesCollRef = collection(firestore, 'users', user.uid, 'expenses');
+    addDocumentNonBlocking(expensesCollRef, {
+      userId: user.uid,
+      date: new Date(),
+      description: `Debt payment: ${selectedDebt.creditor}`,
+      amount: data.amount,
+      category: 'Expense',
+      subcategory: 'Debt Repayment', 
+      paymentMethod: 'Bank Transfer', // You might want to make this selectable in the future
+    });
     
     toast({
       title: 'Payment Recorded!',
@@ -289,7 +300,7 @@ export function DebtManager() {
                                 onClick={() => setDebtToDelete(debt)}
                               >
                                 Delete
-                              </DropdownMenuItem>
+                              DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
@@ -483,3 +494,5 @@ export function DebtManager() {
     </>
   );
 }
+
+    
