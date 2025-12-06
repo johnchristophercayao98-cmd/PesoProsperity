@@ -9,10 +9,17 @@ import { getStorage } from 'firebase/storage';
 // IMPORTANT: DO NOT MODIFY THIS FUNCTION
 export function initializeFirebase() {
   if (!getApps().length) {
-    // We are now consistently using the firebaseConfig object for initialization
-    // to ensure compatibility with various hosting platforms like Vercel.
-    const firebaseApp = initializeApp(firebaseConfig);
-    return getSdks(firebaseApp);
+    try {
+      // This is the default case, and is used by App Hosting.
+      // It automatically initializes with the hosting environment's config.
+      const firebaseApp = initializeApp();
+      return getSdks(firebaseApp);
+    } catch {
+      // This is the fallback case, and is used by local development and Vercel.
+      // It initializes with the config from the firebaseConfig.ts file.
+      const firebaseApp = initializeApp(firebaseConfig);
+      return getSdks(firebaseApp);
+    }
   }
 
   // If already initialized, return the SDKs with the already initialized App
