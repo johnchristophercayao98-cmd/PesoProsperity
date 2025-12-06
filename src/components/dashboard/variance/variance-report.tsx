@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { format, startOfMonth, endOfMonth, isWithinInterval, addDays, addWeeks, addMonths, addYears, isAfter, isBefore, isEqual, startOfDay } from "date-fns";
 import type { Budget, Transaction, RecurringTransaction } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -26,6 +26,7 @@ import {
 } from '@/firebase';
 import { collection, query, where, Timestamp } from 'firebase/firestore';
 import { useLanguage } from "@/context/language-context";
+import { cn } from "@/lib/utils";
 
 const toDate = (date: any): Date | undefined => {
   if (!date) return undefined;
@@ -162,7 +163,32 @@ export function VarianceReport() {
       }, [budgets, singleTransactions, recurringTransactions, selectedDate]);
 
     const isLoading = isBudgetsLoading || isSingleTransactionsLoading || isRecurringTransactionsLoading;
-    const { income = [], expenses = [] } = budget || {};
+    
+    const { 
+        income = [], 
+        expenses = [],
+        totalBudgeted,
+        totalActual,
+        incomeVariance,
+        expenseVariance,
+    } = useMemo(() => {
+        if (!budget) return {};
+    
+        const totalBudgetedIncome = budget.income.reduce((sum, item) => sum + item.budgeted, 0);
+        const totalActualIncome = budget.income.reduce((sum, item) => sum + item.actual, 0);
+        const totalBudgetedExpense = budget.expenses.reduce((sum, item) => sum + item.budgeted, 0);
+        const totalActualExpense = budget.expenses.reduce((sum, item) => sum + item.actual, 0);
+    
+        return {
+            income: budget.income,
+            expenses: budget.expenses,
+            totalBudgeted: totalBudgetedIncome + totalBudgetedExpense,
+            totalActual: totalActualIncome + totalActualExpense,
+            incomeVariance: totalActualIncome - totalBudgetedIncome,
+            expenseVariance: totalBudgetedExpense - totalActualExpense,
+        };
+    }, [budget]);
+
     const overspentItems = expenses.filter(item => item.actual > item.budgeted);
 
     const incomeVarianceData = income.map(item => ({
@@ -215,15 +241,6 @@ export function VarianceReport() {
                     </PopoverContent>
                 </Popover>
             </div>
-            {overspentItems.length > 0 && (
-                <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>Overspending Alert!</AlertTitle>
-                    <AlertDescription>
-                        You have exceeded your budget in the following categories: {overspentItems.map(i => i.name).join(', ')}.
-                    </AlertDescription>
-                </Alert>
-            )}
 
             {!budget ? (
                 <Card>
@@ -234,6 +251,57 @@ export function VarianceReport() {
                 </Card>
             ) : (
             <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium">Total Budgeted</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">₱{totalBudgeted.toLocaleString()}</div>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium">Total Actual</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">₱{totalActual.toLocaleString()}</div>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                        <CardTitle className="text-sm font-medium">Income Variance</CardTitle>
+                        <TrendingUp className={cn("h-4 w-4", incomeVariance >= 0 ? "text-green-500" : "text-red-500")} />
+                    </CardHeader>
+                    <CardContent>
+                        <div className={cn("text-2xl font-bold", incomeVariance >= 0 ? "text-green-600" : "text-red-600")}>
+                           {incomeVariance >= 0 ? '+' : '-'}₱{Math.abs(incomeVariance).toLocaleString()}
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                        <CardTitle className="text-sm font-medium">Expense Variance</CardTitle>
+                        <TrendingDown className={cn("h-4 w-4", expenseVariance >= 0 ? "text-green-500" : "text-red-500")} />
+                    </CardHeader>
+                    <CardContent>
+                         <div className={cn("text-2xl font-bold", expenseVariance >= 0 ? "text-green-600" : "text-red-600")}>
+                           {expenseVariance >= 0 ? '+' : '-'}₱{Math.abs(expenseVariance).toLocaleString()}
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+
+            {overspentItems.length > 0 && (
+                <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Overspending Alert!</AlertTitle>
+                    <AlertDescription>
+                        You have exceeded your budget in the following categories: {overspentItems.map(i => i.name).join(', ')}.
+                    </AlertDescription>
+                </Alert>
+            )}
+            
             <div className="grid md:grid-cols-2 gap-6">
                  <Card>
                     <CardHeader>
