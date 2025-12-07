@@ -277,7 +277,7 @@ export function DebtManager() {
                           <Progress value={progress} />
                         </TableCell>
                         <TableCell>
-                          ₱{debt.minimumPayment.toLocaleString()}
+                          ₱{debt.minimumPayment ? debt.minimumPayment.toLocaleString() : '0'}
                         </TableCell>
                         <TableCell>
                           <DropdownMenu>
