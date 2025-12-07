@@ -186,14 +186,24 @@ export default function StatementPage() {
       };
     }).filter(Boolean) as { month: Date; inflows: number; outflows: number; netChange: number; endingBalance: number; }[];
 
+    const monthStart = startOfMonth(selectedDate);
+    const monthEnd = endOfMonth(selectedDate);
+    const selectedMonthTransactions = allTransactions.filter(t => {
+        const tDate = toDate(t.date);
+        return tDate && isWithinInterval(tDate, { start: monthStart, end: monthEnd }) && (isBefore(tDate, today) || isEqual(tDate, today));
+    });
+
+    const totalInflows = selectedMonthTransactions.filter(t => t.category === 'Income').reduce((sum, t) => sum + t.amount, 0);
+    const totalOutflows = selectedMonthTransactions.filter(t => t.category !== 'Income').reduce((sum, t) => sum + t.amount, 0);
+    
     const yearTransactions = allTransactions.filter(t => {
         const tDate = toDate(t.date);
         return tDate && isWithinInterval(tDate, { start: yearStart, end: endOfYear(selectedDate) }) && (isBefore(tDate, today) || isEqual(tDate, today));
     });
 
-    const totalInflows = yearTransactions.filter(t => t.category === 'Income').reduce((sum, t) => sum + t.amount, 0);
-    const totalOutflows = yearTransactions.filter(t => t.category !== 'Income').reduce((sum, t) => sum + t.amount, 0);
-    const endingBalance = beginningBalance + totalInflows - totalOutflows;
+    const yearTotalInflows = yearTransactions.filter(t => t.category === 'Income').reduce((sum, t) => sum + t.amount, 0);
+    const yearTotalOutflows = yearTransactions.filter(t => t.category !== 'Income').reduce((sum, t) => sum + t.amount, 0);
+    const endingBalance = beginningBalance + yearTotalInflows - yearTotalOutflows;
     
     return {
       monthlyData,
@@ -263,7 +273,7 @@ export default function StatementPage() {
             </CardHeader>
             <CardContent>
                 <div className="text-2xl font-bold text-green-600">+₱{totalInflows.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                <p className="text-xs text-muted-foreground">{t('totalIncomeIn')} {format(selectedDate, "yyyy")}</p>
+                <p className="text-xs text-muted-foreground">{t('totalIncomeIn')} {format(selectedDate, "MMMM yyyy")}</p>
             </CardContent>
           </Card>
           <Card>
@@ -273,7 +283,7 @@ export default function StatementPage() {
             </CardHeader>
             <CardContent>
                 <div className="text-2xl font-bold text-red-600">-₱{totalOutflows.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                <p className="text-xs text-muted-foreground">{t('totalExpensesIn')} {format(selectedDate, "yyyy")}</p>
+                <p className="text-xs text-muted-foreground">{t('totalExpensesIn')} {format(selectedDate, "MMMM yyyy")}</p>
             </CardContent>
           </Card>
            <Card>
@@ -333,5 +343,7 @@ export default function StatementPage() {
     </div>
   )
 }
+
+    
 
     
