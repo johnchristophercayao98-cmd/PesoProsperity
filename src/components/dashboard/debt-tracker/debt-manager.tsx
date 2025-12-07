@@ -271,6 +271,7 @@ export function DebtManager() {
                     const progress =
                       ((debt.principalAmount - debt.currentBalance) / debt.principalAmount) * 100;
                     const monthlyInterest = remaining * (debt.interestRate / 100);
+                    const monthlyDue = debt.minimumPayment + monthlyInterest;
                     return (
                       <TableRow key={debt.id}>
                         <TableCell className="font-medium">
@@ -289,7 +290,7 @@ export function DebtManager() {
                           <Progress value={progress} />
                         </TableCell>
                         <TableCell>
-                          ₱{debt.minimumPayment ? debt.minimumPayment.toLocaleString() : '0'}
+                          ₱{monthlyDue > 0 ? monthlyDue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0'}
                         </TableCell>
                         <TableCell>
                           <DropdownMenu>
@@ -526,5 +527,6 @@ export function DebtManager() {
     
 
     
+
 
 
