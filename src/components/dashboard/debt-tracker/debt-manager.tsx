@@ -91,6 +91,7 @@ const debtSchema = z.object({
   currentBalance: z.coerce.number().min(0).optional().default(0),
   interestRate: z.coerce.number().min(0),
   minimumPayment: z.coerce.number().min(0),
+  term: z.coerce.number().min(0).optional(),
 });
 type DebtFormData = z.infer<typeof debtSchema>;
 
@@ -124,6 +125,7 @@ export function DebtManager() {
       currentBalance: 0,
       interestRate: 0,
       minimumPayment: 0,
+      term: undefined,
     }
   });
   const payForm = useForm<PaymentFormData>({
@@ -149,6 +151,7 @@ export function DebtManager() {
             currentBalance: editingDebt.currentBalance,
             interestRate: editingDebt.interestRate,
             minimumPayment: editingDebt.minimumPayment,
+            term: editingDebt.term,
         });
         setIsAddDialogOpen(true);
     }
@@ -254,6 +257,7 @@ export function DebtManager() {
                     <TableHead>Creditor</TableHead>
                     <TableHead>Remaining Balance</TableHead>
                     <TableHead>Monthly Interest</TableHead>
+                    <TableHead>Term (Months)</TableHead>
                     <TableHead className="w-[200px]">Progress</TableHead>
                     <TableHead>Minimum Payment</TableHead>
                     <TableHead>
@@ -277,6 +281,9 @@ export function DebtManager() {
                         </TableCell>
                         <TableCell>
                           ₱{monthlyInterest > 0 ? monthlyInterest.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '-'}
+                        </TableCell>
+                        <TableCell>
+                          {debt.term ? `${debt.term} months` : 'N/A'}
                         </TableCell>
                         <TableCell>
                           <Progress value={progress} />
@@ -411,19 +418,34 @@ export function DebtManager() {
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={addForm.control}
-                  name="interestRate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Monthly Interest Rate (%)</FormLabel>
-                      <FormControl>
-                        <Input type="number" placeholder="1.2" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                    control={addForm.control}
+                    name="interestRate"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Monthly Interest Rate (%)</FormLabel>
+                        <FormControl>
+                            <Input type="number" placeholder="1.2" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+                    <FormField
+                    control={addForm.control}
+                    name="term"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Term (Months)</FormLabel>
+                        <FormControl>
+                            <Input type="number" placeholder="36" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+                </div>
                 <FormField
                   control={addForm.control}
                   name="minimumPayment"
@@ -504,3 +526,4 @@ export function DebtManager() {
     
 
     
+

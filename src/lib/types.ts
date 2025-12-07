@@ -42,6 +42,7 @@ export type Debt = {
   interestRate: number;
   minimumPayment: number;
   currentBalance: number;
+  term?: number;
 };
 
 export type BudgetCategory = {
