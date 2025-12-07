@@ -242,7 +242,7 @@ export function DebtManager() {
 
   const handleSetMonthlyDue = () => {
     if (selectedDebt) {
-      const monthlyInterest = (selectedDebt.currentBalance * (selectedDebt.interestRate / 100)) / 12;
+      const monthlyInterest = (selectedDebt.principalAmount * (selectedDebt.interestRate / 100)) / 12;
       const monthlyDue = selectedDebt.monthlyPrincipal + monthlyInterest;
       payForm.setValue('amount', monthlyDue > 0 ? parseFloat(monthlyDue.toFixed(2)) : 0);
     }
@@ -288,7 +288,7 @@ export function DebtManager() {
                     const remaining = debt.currentBalance;
                     const progress =
                       ((debt.principalAmount - debt.currentBalance) / debt.principalAmount) * 100;
-                    const monthlyInterest = (remaining * (debt.interestRate / 100)) / 12;
+                    const monthlyInterest = (debt.principalAmount * (debt.interestRate / 100)) / 12;
                     const monthlyDue = debt.monthlyPrincipal + monthlyInterest;
                     return (
                       <TableRow key={debt.id}>
@@ -549,6 +549,8 @@ export function DebtManager() {
     
 
     
+
+
 
 
 
