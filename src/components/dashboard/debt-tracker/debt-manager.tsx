@@ -123,7 +123,7 @@ export function DebtManager() {
       principalAmount: 0,
       currentBalance: 0,
       interestRate: 0,
-      term: 0,
+      term: 1,
     }
   });
   const payForm = useForm<PaymentFormData>({
@@ -175,12 +175,14 @@ export function DebtManager() {
   const handleAddDebt = (data: DebtFormData) => {
     if (!user) return;
     
+    const monthlyPrincipal = data.principalAmount > 0 && data.term > 0 ? data.principalAmount / data.term : 0;
+    
     const newDebtData: Omit<Debt, 'id' | 'userId'> = {
         name: data.name,
         principalAmount: data.principalAmount,
         currentBalance: data.currentBalance,
         interestRate: data.interestRate,
-        monthlyPrincipal: monthlyPrincipalDisplay,
+        monthlyPrincipal: monthlyPrincipal,
         term: data.term,
     };
 
@@ -206,22 +208,43 @@ export function DebtManager() {
 
   const handleRecordPayment = (data: PaymentFormData) => {
     if (!selectedDebt || !user) return;
-    const newBalance = selectedDebt.currentBalance - data.amount;
+
+    const interestComponent = (selectedDebt.principalAmount * (selectedDebt.interestRate / 100)) / 12;
+    const principalComponent = data.amount - interestComponent;
+    
+    const newBalance = selectedDebt.currentBalance - principalComponent;
     const debtRef = doc(firestore, 'users', user.uid, 'debts', selectedDebt.id);
     updateDocumentNonBlocking(debtRef, {
         currentBalance: Math.max(0, newBalance)
     });
 
     const expensesCollRef = collection(firestore, 'users', user.uid, 'expenses');
-    addDocumentNonBlocking(expensesCollRef, {
-      userId: user.uid,
-      date: new Date(),
-      description: `Debt payment: ${selectedDebt.name}`,
-      amount: data.amount,
-      category: 'Liability',
-      subcategory: 'Loan', 
-      paymentMethod: 'Bank Transfer',
-    });
+    
+    // Create interest transaction
+    if (interestComponent > 0) {
+        addDocumentNonBlocking(expensesCollRef, {
+          userId: user.uid,
+          date: new Date(),
+          description: `Interest for ${selectedDebt.name}`,
+          amount: interestComponent,
+          category: 'Liability',
+          subcategory: 'Interest', 
+          paymentMethod: 'Bank Transfer',
+        });
+    }
+
+    // Create principal transaction
+    if (principalComponent > 0) {
+        addDocumentNonBlocking(expensesCollRef, {
+          userId: user.uid,
+          date: new Date(),
+          description: `Principal payment for ${selectedDebt.name}`,
+          amount: principalComponent,
+          category: 'Liability',
+          subcategory: 'Loan', 
+          paymentMethod: 'Bank Transfer',
+        });
+    }
     
     toast({
       title: 'Payment Recorded!',
@@ -583,5 +606,7 @@ export function DebtManager() {
 
 
 
+
+    
 
     

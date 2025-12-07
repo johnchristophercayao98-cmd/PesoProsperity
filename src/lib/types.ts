@@ -42,7 +42,7 @@ export type Debt = {
   interestRate: number;
   monthlyPrincipal: number;
   currentBalance: number;
-  term?: number;
+  term: number;
 };
 
 export type BudgetCategory = {
@@ -61,3 +61,5 @@ export type Budget = {
   expenses: BudgetCategory[];
   liabilities: BudgetCategory[];
 };
+
+    
