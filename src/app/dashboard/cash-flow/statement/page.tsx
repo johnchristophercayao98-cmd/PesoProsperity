@@ -2,7 +2,7 @@
 "use client"
 
 import { useState, useMemo } from "react";
-import { format, startOfYear, endOfYear, eachMonthOfInterval, startOfMonth, endOfMonth, isWithinInterval, addDays, addWeeks, addMonths, addYears, isAfter, isBefore, isEqual, startOfDay } from "date-fns";
+import { format, startOfYear, endOfYear, eachMonthOfInterval, startOfMonth, endOfMonth, isWithinInterval, addDays, addWeeks, addMonths, addYears, isAfter, isBefore, isEqual, startOfDay, subMonths } from "date-fns";
 import { DollarSign, Loader2, TrendingDown, TrendingUp, CalendarIcon, Wallet } from "lucide-react";
 import type { Transaction, RecurringTransaction } from "@/lib/types";
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
@@ -115,9 +115,10 @@ export default function StatementPage() {
     }
     
     const yearStart = startOfYear(selectedDate);
+    const monthStart = startOfMonth(selectedDate);
     const today = startOfDay(new Date());
 
-    // We need all transactions from the beginning of time to calculate the correct beginning balance
+    // We need all transactions from the beginning of time to calculate balances correctly
     const earliestSingleDate = singleTransactions.length > 0 ? toDate(singleTransactions[0].date) : null;
     const earliestRecurringDate = recurringTransactions.length > 0 
         ? recurringTransactions.map(rt => toDate(rt.startDate)).reduce((earliest, current) => (current && earliest && current < earliest) ? current : earliest, toDate(recurringTransactions[0].startDate))
@@ -132,7 +133,6 @@ export default function StatementPage() {
         earliestTransactionDate = earliestRecurringDate;
     }
 
-
     const recurringInstancesAllTime = generateTransactionInstances(recurringTransactions, earliestTransactionDate, today);
 
     const allTransactions = [...singleTransactions, ...recurringInstancesAllTime].filter(t => {
@@ -143,12 +143,17 @@ export default function StatementPage() {
     const beginningBalance = allTransactions
       .filter(t => {
         const transactionDate = toDate(t.date);
-        return transactionDate && isBefore(transactionDate, yearStart);
+        return transactionDate && isBefore(transactionDate, monthStart);
       })
       .reduce((acc, t) => acc + (t.category === 'Income' ? t.amount : -t.amount), 0);
       
     const monthsInYear = eachMonthOfInterval({ start: yearStart, end: endOfYear(selectedDate) });
-    let runningBalance = beginningBalance;
+    let runningBalance = allTransactions
+        .filter(t => {
+            const transactionDate = toDate(t.date);
+            return transactionDate && isBefore(transactionDate, yearStart);
+        })
+        .reduce((acc, t) => acc + (t.category === 'Income' ? t.amount : -t.amount), 0);
 
     const monthlyData = monthsInYear.map(month => {
       // Only calculate for months up to and including the current month of the current year
@@ -156,20 +161,20 @@ export default function StatementPage() {
         return null;
       }
       
-      const monthStart = startOfMonth(month);
-      const monthEnd = endOfMonth(month);
+      const monthStartLoop = startOfMonth(month);
+      const monthEndLoop = endOfMonth(month);
 
       const inflows = allTransactions
         .filter(t => {
           const transactionDate = toDate(t.date);
-          return transactionDate && isWithinInterval(transactionDate, { start: monthStart, end: monthEnd }) && t.category === 'Income';
+          return transactionDate && isWithinInterval(transactionDate, { start: monthStartLoop, end: monthEndLoop }) && t.category === 'Income';
         })
         .reduce((sum, t) => sum + t.amount, 0);
 
       const outflows = allTransactions
         .filter(t => {
           const transactionDate = toDate(t.date);
-          return transactionDate && isWithinInterval(transactionDate, { start: monthStart, end: monthEnd }) && t.category !== 'Income';
+          return transactionDate && isWithinInterval(transactionDate, { start: monthStartLoop, end: monthEndLoop }) && t.category !== 'Income';
         })
         .reduce((sum, t) => sum + t.amount, 0);
       
@@ -186,7 +191,6 @@ export default function StatementPage() {
       };
     }).filter(Boolean) as { month: Date; inflows: number; outflows: number; netChange: number; endingBalance: number; }[];
 
-    const monthStart = startOfMonth(selectedDate);
     const monthEnd = endOfMonth(selectedDate);
     const selectedMonthTransactions = allTransactions.filter(t => {
         const tDate = toDate(t.date);
@@ -196,14 +200,7 @@ export default function StatementPage() {
     const totalInflows = selectedMonthTransactions.filter(t => t.category === 'Income').reduce((sum, t) => sum + t.amount, 0);
     const totalOutflows = selectedMonthTransactions.filter(t => t.category !== 'Income').reduce((sum, t) => sum + t.amount, 0);
     
-    const yearTransactions = allTransactions.filter(t => {
-        const tDate = toDate(t.date);
-        return tDate && isWithinInterval(tDate, { start: yearStart, end: endOfYear(selectedDate) }) && (isBefore(tDate, today) || isEqual(tDate, today));
-    });
-
-    const yearTotalInflows = yearTransactions.filter(t => t.category === 'Income').reduce((sum, t) => sum + t.amount, 0);
-    const yearTotalOutflows = yearTransactions.filter(t => t.category !== 'Income').reduce((sum, t) => sum + t.amount, 0);
-    const endingBalance = beginningBalance + yearTotalInflows - yearTotalOutflows;
+    const endingBalance = runningBalance;
     
     return {
       monthlyData,
@@ -263,7 +260,7 @@ export default function StatementPage() {
             </CardHeader>
             <CardContent>
                 <div className="text-2xl font-bold">₱{beginningBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                <p className="text-xs text-muted-foreground">{t('asOf')} {format(startOfYear(selectedDate), "MMM d, yyyy")}</p>
+                <p className="text-xs text-muted-foreground">{t('asOf')} {format(startOfMonth(selectedDate), "MMM d, yyyy")}</p>
             </CardContent>
           </Card>
           <Card>
@@ -343,7 +340,3 @@ export default function StatementPage() {
     </div>
   )
 }
-
-    
-
-    
