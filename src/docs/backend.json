@@ -138,18 +138,43 @@
           "description": "End date of the budget period.",
           "format": "date-time"
         },
-        "categories": {
+        "income": {
           "type": "array",
-          "description": "Categories for budget",
+          "description": "Income categories for the budget.",
           "items": {
-            "type": "string"
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "budgeted": { "type": "number" },
+              "actual": { "type": "number" }
+            },
+            "required": ["name", "budgeted", "actual"]
           }
         },
-        "amounts": {
+        "expenses": {
           "type": "array",
-          "description": "Amounts per Category",
+          "description": "Expense categories for the budget.",
           "items": {
-            "type": "number"
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "budgeted": { "type": "number" },
+              "actual": { "type": "number" }
+            },
+            "required": ["name", "budgeted", "actual"]
+          }
+        },
+        "liabilities": {
+          "type": "array",
+          "description": "Liability categories for the budget.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "budgeted": { "type": "number" },
+              "actual": { "type": "number" }
+            },
+            "required": ["name", "budgeted", "actual"]
           }
         }
       },

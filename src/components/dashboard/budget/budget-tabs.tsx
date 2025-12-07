@@ -325,6 +325,7 @@ export function BudgetTabs() {
       ...baseBudget,
       income: calculateActuals(baseBudget.income || [], 'Income'),
       expenses: calculateActuals(baseBudget.expenses || [], 'Expense'),
+      liabilities: calculateActuals(baseBudget.liabilities || [], 'Liability'),
     };
   }, [budgets, singleTransactions, recurringTransactions, selectedDate]);
 
@@ -390,6 +391,7 @@ export function BudgetTabs() {
       updateDocumentNonBlocking(budgetRef, {
         income: updatePayload.income.map(({ actual, ...rest }) => rest), // Don't save actual
         expenses: updatePayload.expenses.map(({ actual, ...rest }) => rest),
+        liabilities: updatePayload.liabilities.map(({ actual, ...rest }) => rest),
       });
 
       toast({
@@ -409,12 +411,16 @@ export function BudgetTabs() {
       let updatedExpenses = budget?.expenses
         ? [...budget.expenses.map(({ actual, ...rest }) => rest)]
         : [];
+       let updatedLiabilities = budget?.liabilities
+        ? [...budget.liabilities.map(({ actual, ...rest }) => rest)]
+        : [];
 
       if (data.type === 'income') {
         updatedIncome.push(newCategory);
-      } else {
-        // Handles both 'expense' and 'liability'
+      } else if (data.type === 'expense') {
         updatedExpenses.push(newCategory);
+      } else { // liability
+        updatedLiabilities.push(newCategory);
       }
 
       if (budget) {
@@ -428,6 +434,7 @@ export function BudgetTabs() {
         updateDocumentNonBlocking(budgetRef, {
           income: updatedIncome,
           expenses: updatedExpenses,
+          liabilities: updatedLiabilities,
         });
       } else {
         const budgetCollRef = collection(
@@ -442,7 +449,8 @@ export function BudgetTabs() {
           startDate: startOfMonth(selectedDate),
           endDate: endOfMonth(selectedDate),
           income: data.type === 'income' ? [newCategory] : [],
-          expenses: data.type !== 'income' ? [newCategory] : [],
+          expenses: data.type === 'expense' ? [newCategory] : [],
+          liabilities: data.type === 'liability' ? [newCategory] : [],
         });
       }
       toast({
@@ -467,11 +475,15 @@ export function BudgetTabs() {
     const updatedExpenses = budget.expenses.filter(
       (e) => e.name !== itemToDelete.name
     );
+    const updatedLiabilities = budget.liabilities.filter(
+      (l) => l.name !== itemToDelete.name
+    );
 
     const budgetRef = doc(firestore, 'users', user.uid, 'budgets', budget.id);
     updateDocumentNonBlocking(budgetRef, {
       income: updatedIncome.map(({ actual, ...rest }) => rest),
       expenses: updatedExpenses.map(({ actual, ...rest }) => rest),
+      liabilities: updatedLiabilities.map(({ actual, ...rest }) => rest),
     });
 
     toast({
@@ -762,6 +774,17 @@ export function BudgetTabs() {
                     {renderPieChart(
                       'Expense Categories',
                       budget.expenses || []
+                    )}
+                  </div>
+                   <div>
+                    {renderBudgetTable(
+                      'Liabilities',
+                      budget.liabilities || [],
+                      'liability'
+                    )}
+                    {renderPieChart(
+                      'Liability Payments',
+                      budget.liabilities || []
                     )}
                   </div>
                 </div>

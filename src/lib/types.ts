@@ -59,4 +59,5 @@ export type Budget = {
   endDate: Date | Timestamp;
   income: BudgetCategory[];
   expenses: BudgetCategory[];
+  liabilities: BudgetCategory[];
 };
