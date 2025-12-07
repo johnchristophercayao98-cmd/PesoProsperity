@@ -216,7 +216,7 @@ export default function StatementPage() {
                 <PopoverTrigger asChild>
                 <Button variant="outline">
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {format(selectedDate, "yyyy")}
+                    {format(selectedDate, "MMMM yyyy")}
                 </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0">
@@ -227,9 +227,6 @@ export default function StatementPage() {
                         if(date) setSelectedDate(date);
                     }}
                     initialFocus
-                    captionLayout="dropdown-buttons"
-                    fromYear={2020}
-                    toYear={2030}
                 />
                 </PopoverContent>
             </Popover>
@@ -322,3 +319,5 @@ export default function StatementPage() {
     </div>
   )
 }
+
+    
