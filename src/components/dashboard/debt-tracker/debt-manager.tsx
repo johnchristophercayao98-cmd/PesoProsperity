@@ -194,8 +194,8 @@ export function DebtManager() {
       date: new Date(),
       description: `Debt payment: ${selectedDebt.name}`,
       amount: data.amount,
-      category: 'Expense',
-      subcategory: 'Debt Repayment', 
+      category: 'Liability',
+      subcategory: 'Loan', 
       paymentMethod: 'Bank Transfer',
     });
     
@@ -230,6 +230,15 @@ export function DebtManager() {
     acc[item.name] = { label: item.name, color: COLORS[index % COLORS.length] };
     return acc;
   }, {});
+
+  const handleSetMonthlyDue = () => {
+    if (selectedDebt) {
+      const monthlyInterest = selectedDebt.currentBalance * (selectedDebt.interestRate / 100);
+      const monthlyDue = selectedDebt.minimumPayment + monthlyInterest;
+      payForm.setValue('amount', monthlyDue > 0 ? parseFloat(monthlyDue.toFixed(2)) : 0);
+    }
+  };
+
 
   return (
     <>
@@ -488,6 +497,7 @@ export function DebtManager() {
           <Form {...payForm}>
             <form
               onSubmit={payForm.handleSubmit(handleRecordPayment)}
+              id="pay-debt-form"
               className="space-y-4"
             >
               <FormField
@@ -508,16 +518,19 @@ export function DebtManager() {
                   </FormItem>
                 )}
               />
-              <DialogFooter>
-                <DialogClose asChild>
-                  <Button type="button" variant="secondary">
-                    Cancel
-                  </Button>
-                </DialogClose>
-                <Button type="submit">Record Payment</Button>
-              </DialogFooter>
             </form>
           </Form>
+          <div className="flex justify-end gap-2">
+             <Button variant="outline" size="sm" onClick={handleSetMonthlyDue}>Use Monthly Due</Button>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="secondary">
+                Cancel
+              </Button>
+            </DialogClose>
+            <Button type="submit" form="pay-debt-form">Record Payment</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
@@ -527,6 +540,7 @@ export function DebtManager() {
     
 
     
+
 
 
 
