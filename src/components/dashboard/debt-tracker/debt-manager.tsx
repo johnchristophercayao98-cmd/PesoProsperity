@@ -150,7 +150,7 @@ export function DebtManager() {
             principalAmount: editingDebt.principalAmount,
             currentBalance: editingDebt.currentBalance,
             interestRate: editingDebt.interestRate,
-            monthlyPrincipal: editingDebt.minimumPayment, //This is now monthlyPrincipal
+            monthlyPrincipal: editingDebt.monthlyPrincipal,
             term: editingDebt.term,
         });
         setIsAddDialogOpen(true);
@@ -159,11 +159,15 @@ export function DebtManager() {
 
   const handleAddDebt = (data: DebtFormData) => {
     if (!user) return;
-    const newDebtData = {
-        ...data,
-        minimumPayment: data.monthlyPrincipal, // Keep minimumPayment in the DB for now
+    
+    const newDebtData: Omit<Debt, 'id' | 'userId'> = {
+        name: data.name,
+        principalAmount: data.principalAmount,
+        currentBalance: data.currentBalance,
+        interestRate: data.interestRate,
+        monthlyPrincipal: data.monthlyPrincipal,
+        term: data.term,
     };
-    delete (newDebtData as any).monthlyPrincipal; // Don't save this to DB
 
     if (editingDebt) {
         const debtRef = doc(firestore, 'users', user.uid, 'debts', editingDebt.id);
@@ -238,8 +242,8 @@ export function DebtManager() {
 
   const handleSetMonthlyDue = () => {
     if (selectedDebt) {
-      const monthlyInterest = selectedDebt.currentBalance * (selectedDebt.interestRate / 100 / 12);
-      const monthlyDue = selectedDebt.minimumPayment + monthlyInterest;
+      const monthlyInterest = (selectedDebt.currentBalance * (selectedDebt.interestRate / 100)) / 12;
+      const monthlyDue = selectedDebt.monthlyPrincipal + monthlyInterest;
       payForm.setValue('amount', monthlyDue > 0 ? parseFloat(monthlyDue.toFixed(2)) : 0);
     }
   };
@@ -284,8 +288,8 @@ export function DebtManager() {
                     const remaining = debt.currentBalance;
                     const progress =
                       ((debt.principalAmount - debt.currentBalance) / debt.principalAmount) * 100;
-                    const monthlyInterest = remaining * (debt.interestRate / 100 / 12);
-                    const monthlyDue = debt.minimumPayment + monthlyInterest;
+                    const monthlyInterest = (remaining * (debt.interestRate / 100)) / 12;
+                    const monthlyDue = debt.monthlyPrincipal + monthlyInterest;
                     return (
                       <TableRow key={debt.id}>
                         <TableCell className="font-medium">
@@ -545,6 +549,7 @@ export function DebtManager() {
     
 
     
+
 
 
 

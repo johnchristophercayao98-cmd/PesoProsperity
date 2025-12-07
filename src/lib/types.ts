@@ -40,7 +40,7 @@ export type Debt = {
   name: string;
   principalAmount: number;
   interestRate: number;
-  minimumPayment: number;
+  monthlyPrincipal: number;
   currentBalance: number;
   term?: number;
 };
