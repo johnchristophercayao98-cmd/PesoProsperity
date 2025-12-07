@@ -253,6 +253,7 @@ export function DebtManager() {
                   <TableRow>
                     <TableHead>Creditor</TableHead>
                     <TableHead>Remaining Balance</TableHead>
+                    <TableHead>Monthly Interest</TableHead>
                     <TableHead className="w-[200px]">Progress</TableHead>
                     <TableHead>Minimum Payment</TableHead>
                     <TableHead>
@@ -265,6 +266,7 @@ export function DebtManager() {
                     const remaining = debt.currentBalance;
                     const progress =
                       ((debt.principalAmount - debt.currentBalance) / debt.principalAmount) * 100;
+                    const monthlyInterest = remaining * (debt.interestRate / 100);
                     return (
                       <TableRow key={debt.id}>
                         <TableCell className="font-medium">
@@ -272,6 +274,9 @@ export function DebtManager() {
                         </TableCell>
                         <TableCell>
                           ₱{remaining > 0 ? remaining.toLocaleString() : 'Paid Off'}
+                        </TableCell>
+                        <TableCell>
+                          ₱{monthlyInterest > 0 ? monthlyInterest.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '-'}
                         </TableCell>
                         <TableCell>
                           <Progress value={progress} />
@@ -411,7 +416,7 @@ export function DebtManager() {
                   name="interestRate"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Interest Rate (%)</FormLabel>
+                      <FormLabel>Monthly Interest Rate (%)</FormLabel>
                       <FormControl>
                         <Input type="number" placeholder="1.2" {...field} />
                       </FormControl>
