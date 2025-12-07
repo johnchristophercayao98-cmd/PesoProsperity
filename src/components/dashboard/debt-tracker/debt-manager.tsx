@@ -90,7 +90,6 @@ const debtSchema = z.object({
   principalAmount: z.coerce.number().min(1, 'Total amount must be greater than 0.'),
   currentBalance: z.coerce.number().min(0).optional().default(0),
   interestRate: z.coerce.number().min(0),
-  monthlyPrincipal: z.coerce.number().min(0),
   term: z.coerce.number().min(1, "Term must be at least 1 month."),
 });
 type DebtFormData = z.infer<typeof debtSchema>;
@@ -124,7 +123,6 @@ export function DebtManager() {
       principalAmount: 0,
       currentBalance: 0,
       interestRate: 0,
-      monthlyPrincipal: 0,
       term: 0,
     }
   });
@@ -168,7 +166,6 @@ export function DebtManager() {
             principalAmount: editingDebt.principalAmount,
             currentBalance: editingDebt.currentBalance,
             interestRate: editingDebt.interestRate,
-            monthlyPrincipal: editingDebt.monthlyPrincipal,
             term: editingDebt.term,
         });
         setIsAddDialogOpen(true);
@@ -585,3 +582,6 @@ export function DebtManager() {
 
 
 
+
+
+    
