@@ -140,7 +140,7 @@ const expenseCategories = [
 
 const budgetItemSchema = z.object({
   id: z.string().optional(),
-  type: z.enum(['income', 'expense']),
+  type: z.enum(['income', 'expense', 'liability']),
   category: z.string().min(2, 'Category is required.'),
   budgeted: z.coerce
     .number()
@@ -241,7 +241,7 @@ export function BudgetTabs() {
   } | null>(null);
   const [editingBudgetItem, setEditingBudgetItem] = useState<{
     item: BudgetCategory;
-    type: 'income' | 'expense';
+    type: 'income' | 'expense' | 'liability';
   } | null>(null);
 
   const firestore = useFirestore();
@@ -307,7 +307,7 @@ export function BudgetTabs() {
 
     const calculateActuals = (
       categories: any[],
-      type: 'Income' | 'Expense'
+      type: 'Income' | 'Expense' | 'Liability'
     ) => {
       return categories.map((category) => {
         const actual = monthlyTransactions
@@ -411,6 +411,7 @@ export function BudgetTabs() {
       if (data.type === 'income') {
         updatedIncome.push(newCategory);
       } else {
+        // Handles both 'expense' and 'liability'
         updatedExpenses.push(newCategory);
       }
 
@@ -439,7 +440,7 @@ export function BudgetTabs() {
           startDate: startOfMonth(selectedDate),
           endDate: endOfMonth(selectedDate),
           income: data.type === 'income' ? [newCategory] : [],
-          expenses: data.type === 'expense' ? [newCategory] : [],
+          expenses: data.type !== 'income' ? [newCategory] : [],
         });
       }
       toast({
@@ -537,7 +538,7 @@ export function BudgetTabs() {
   const renderBudgetTable = (
     title: string,
     data: any[],
-    type: 'income' | 'expense'
+    type: 'income' | 'expense' | 'liability'
   ) => (
     <div className="mb-4">
       <h3 className="text-lg font-semibold mb-2">{title}</h3>
@@ -895,6 +896,7 @@ export function BudgetTabs() {
                       <SelectContent>
                         <SelectItem value="income">Income</SelectItem>
                         <SelectItem value="expense">Expense</SelectItem>
+                        <SelectItem value="liability">Liability</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
