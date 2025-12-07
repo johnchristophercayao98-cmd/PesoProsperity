@@ -83,7 +83,7 @@ import { useLanguage } from '@/context/language-context';
 const recurringSchema = z.object({
   description: z.string().min(2, "Description is required"),
   amount: z.coerce.number().min(0.01, 'Amount must be positive.'),
-  category: z.enum(['Income', 'Expense']),
+  category: z.enum(['Income', 'Expense', 'Liability']),
   subcategory: z.string().min(2, 'Subcategory is required.'),
   frequency: z.enum(['daily', 'weekly', 'monthly', 'yearly']),
   startDate: z.date({ required_error: 'Start date is required.' }),
@@ -348,6 +348,7 @@ export function RecurringList() {
                           <SelectContent>
                             <SelectItem value="Income">Income</SelectItem>
                             <SelectItem value="Expense">Expense</SelectItem>
+                            <SelectItem value="Liability">Liability</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />

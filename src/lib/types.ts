@@ -7,7 +7,7 @@ export type Transaction = {
   date: Date | Timestamp;
   description: string;
   amount: number;
-  category: 'Income' | 'Expense';
+  category: 'Income' | 'Expense' | 'Liability';
   subcategory: string;
   paymentMethod: string;
 };
@@ -17,7 +17,7 @@ export type RecurringTransaction = {
   userId: string;
   description: string;
   amount: number;
-  category: 'Income' | 'Expense';
+  category: 'Income' | 'Expense' | 'Liability';
   subcategory: string;
   frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
   startDate: Date | Timestamp;
@@ -60,5 +60,3 @@ export type Budget = {
   income: BudgetCategory[];
   expenses: BudgetCategory[];
 };
-
-    

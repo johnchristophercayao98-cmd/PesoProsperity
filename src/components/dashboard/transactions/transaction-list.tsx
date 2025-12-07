@@ -84,7 +84,7 @@ import { useLanguage } from '@/context/language-context';
 const transactionSchema = z.object({
   description: z.string().min(2, 'Description is required.'),
   amount: z.coerce.number().min(0.01, 'Amount must be positive.'),
-  category: z.enum(['Income', 'Expense']),
+  category: z.enum(['Income', 'Expense', 'Liability']),
   subcategory: z.string().min(2, 'Subcategory is required.'),
   date: z.date({ required_error: 'Date is required.' }),
   paymentMethod: z.string().min(2, 'Payment method is required.'),
@@ -504,6 +504,7 @@ export function TransactionList() {
                         <SelectContent>
                           <SelectItem value="Income">Income</SelectItem>
                           <SelectItem value="Expense">Expense</SelectItem>
+                          <SelectItem value="Liability">Liability</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
