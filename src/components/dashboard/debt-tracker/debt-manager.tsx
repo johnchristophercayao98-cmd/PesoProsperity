@@ -91,7 +91,7 @@ const debtSchema = z.object({
   currentBalance: z.coerce.number().min(0).optional().default(0),
   interestRate: z.coerce.number().min(0),
   monthlyPrincipal: z.coerce.number().min(0),
-  term: z.coerce.number().min(0).optional(),
+  term: z.coerce.number().min(1, "Term must be at least 1 month."),
 });
 type DebtFormData = z.infer<typeof debtSchema>;
 
@@ -125,7 +125,7 @@ export function DebtManager() {
       currentBalance: 0,
       interestRate: 0,
       monthlyPrincipal: 0,
-      term: undefined,
+      term: 0,
     }
   });
   const payForm = useForm<PaymentFormData>({
@@ -137,6 +137,7 @@ export function DebtManager() {
   
   const principalAmountWatcher = addForm.watch('principalAmount');
   const interestRateWatcher = addForm.watch('interestRate');
+  const termWatcher = addForm.watch('term');
 
   const monthlyInterestDisplay = useMemo(() => {
     if (principalAmountWatcher > 0 && interestRateWatcher > 0) {
@@ -144,6 +145,13 @@ export function DebtManager() {
     }
     return 0;
   }, [principalAmountWatcher, interestRateWatcher]);
+  
+  const monthlyPrincipalDisplay = useMemo(() => {
+    if (principalAmountWatcher > 0 && termWatcher && termWatcher > 0) {
+        return principalAmountWatcher / termWatcher;
+    }
+    return 0;
+  }, [principalAmountWatcher, termWatcher]);
   
   const toDate = (date: any): Date | undefined => {
     if (!date) return undefined;
@@ -175,7 +183,7 @@ export function DebtManager() {
         principalAmount: data.principalAmount,
         currentBalance: data.currentBalance,
         interestRate: data.interestRate,
-        monthlyPrincipal: data.monthlyPrincipal,
+        monthlyPrincipal: monthlyPrincipalDisplay,
         term: data.term,
     };
 
@@ -476,19 +484,15 @@ export function DebtManager() {
                     />
                 </div>
                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                    control={addForm.control}
-                    name="monthlyPrincipal"
-                    render={({ field }) => (
-                        <FormItem>
+                    <div>
                         <FormLabel>Monthly Principal (₱)</FormLabel>
-                        <FormControl>
-                            <Input type="number" placeholder="5000" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                    />
+                        <Input
+                            type="number"
+                            value={monthlyPrincipalDisplay.toFixed(2)}
+                            readOnly
+                            className="mt-2 bg-muted/50"
+                        />
+                    </div>
                      <div>
                         <FormLabel>Monthly Interest (₱)</FormLabel>
                         <Input
@@ -570,6 +574,7 @@ export function DebtManager() {
     
 
     
+
 
 
 
