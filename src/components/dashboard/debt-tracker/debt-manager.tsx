@@ -135,6 +135,16 @@ export function DebtManager() {
     }
   });
   
+  const principalAmountWatcher = addForm.watch('principalAmount');
+  const interestRateWatcher = addForm.watch('interestRate');
+
+  const monthlyInterestDisplay = useMemo(() => {
+    if (principalAmountWatcher > 0 && interestRateWatcher > 0) {
+      return (principalAmountWatcher * (interestRateWatcher / 100)) / 12;
+    }
+    return 0;
+  }, [principalAmountWatcher, interestRateWatcher]);
+  
   const toDate = (date: any): Date | undefined => {
     if (!date) return undefined;
     if (date instanceof Date) return date;
@@ -465,19 +475,30 @@ export function DebtManager() {
                     )}
                     />
                 </div>
-                <FormField
-                  control={addForm.control}
-                  name="monthlyPrincipal"
-                  render={({ field }) => (
-                     <FormItem>
-                      <FormLabel>Monthly Principal (₱)</FormLabel>
-                      <FormControl>
-                        <Input type="number" placeholder="5000" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                 <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                    control={addForm.control}
+                    name="monthlyPrincipal"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Monthly Principal (₱)</FormLabel>
+                        <FormControl>
+                            <Input type="number" placeholder="5000" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+                     <div>
+                        <FormLabel>Monthly Interest (₱)</FormLabel>
+                        <Input
+                            type="number"
+                            value={monthlyInterestDisplay.toFixed(2)}
+                            readOnly
+                            className="mt-2 bg-muted/50"
+                        />
+                    </div>
+                </div>
             </form>
           </Form>
           <DialogFooter>
@@ -549,6 +570,7 @@ export function DebtManager() {
     
 
     
+
 
 
 
