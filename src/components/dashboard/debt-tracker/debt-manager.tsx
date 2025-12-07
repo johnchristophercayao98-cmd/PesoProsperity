@@ -90,7 +90,7 @@ const debtSchema = z.object({
   principalAmount: z.coerce.number().min(1, 'Total amount must be greater than 0.'),
   currentBalance: z.coerce.number().min(0).optional().default(0),
   interestRate: z.coerce.number().min(0),
-  minimumPayment: z.coerce.number().min(0),
+  monthlyPrincipal: z.coerce.number().min(0),
   term: z.coerce.number().min(0).optional(),
 });
 type DebtFormData = z.infer<typeof debtSchema>;
@@ -124,7 +124,7 @@ export function DebtManager() {
       principalAmount: 0,
       currentBalance: 0,
       interestRate: 0,
-      minimumPayment: 0,
+      monthlyPrincipal: 0,
       term: undefined,
     }
   });
@@ -150,7 +150,7 @@ export function DebtManager() {
             principalAmount: editingDebt.principalAmount,
             currentBalance: editingDebt.currentBalance,
             interestRate: editingDebt.interestRate,
-            minimumPayment: editingDebt.minimumPayment,
+            monthlyPrincipal: editingDebt.minimumPayment, //This is now monthlyPrincipal
             term: editingDebt.term,
         });
         setIsAddDialogOpen(true);
@@ -159,7 +159,12 @@ export function DebtManager() {
 
   const handleAddDebt = (data: DebtFormData) => {
     if (!user) return;
-    const newDebtData = { ...data };
+    const newDebtData = {
+        ...data,
+        minimumPayment: data.monthlyPrincipal, // Keep minimumPayment in the DB for now
+    };
+    delete (newDebtData as any).monthlyPrincipal; // Don't save this to DB
+
     if (editingDebt) {
         const debtRef = doc(firestore, 'users', user.uid, 'debts', editingDebt.id);
         updateDocumentNonBlocking(debtRef, newDebtData);
@@ -233,7 +238,7 @@ export function DebtManager() {
 
   const handleSetMonthlyDue = () => {
     if (selectedDebt) {
-      const monthlyInterest = selectedDebt.currentBalance * ((selectedDebt.interestRate / 100) / 12);
+      const monthlyInterest = selectedDebt.currentBalance * (selectedDebt.interestRate / 100 / 12);
       const monthlyDue = selectedDebt.minimumPayment + monthlyInterest;
       payForm.setValue('amount', monthlyDue > 0 ? parseFloat(monthlyDue.toFixed(2)) : 0);
     }
@@ -279,7 +284,7 @@ export function DebtManager() {
                     const remaining = debt.currentBalance;
                     const progress =
                       ((debt.principalAmount - debt.currentBalance) / debt.principalAmount) * 100;
-                    const monthlyInterest = remaining * ((debt.interestRate / 100) / 12);
+                    const monthlyInterest = remaining * (debt.interestRate / 100 / 12);
                     const monthlyDue = debt.minimumPayment + monthlyInterest;
                     return (
                       <TableRow key={debt.id}>
@@ -458,10 +463,10 @@ export function DebtManager() {
                 </div>
                 <FormField
                   control={addForm.control}
-                  name="minimumPayment"
+                  name="monthlyPrincipal"
                   render={({ field }) => (
                      <FormItem>
-                      <FormLabel>Monthly Due (₱)</FormLabel>
+                      <FormLabel>Monthly Principal (₱)</FormLabel>
                       <FormControl>
                         <Input type="number" placeholder="5000" {...field} />
                       </FormControl>
@@ -540,6 +545,7 @@ export function DebtManager() {
     
 
     
+
 
 
 
