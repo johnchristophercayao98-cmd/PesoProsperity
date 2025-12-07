@@ -147,10 +147,15 @@ export default function StatementPage() {
       })
       .reduce((acc, t) => acc + (t.category === 'Income' ? t.amount : -t.amount), 0);
       
-    const monthsInYear = eachMonthOfInterval({ start: yearStart, end: today });
+    const monthsInYear = eachMonthOfInterval({ start: yearStart, end: endOfYear(selectedDate) });
     let runningBalance = beginningBalance;
 
     const monthlyData = monthsInYear.map(month => {
+      // Only calculate for months up to and including the current month of the current year
+      if (isAfter(month, today)) {
+        return null;
+      }
+      
       const monthStart = startOfMonth(month);
       const monthEnd = endOfMonth(month);
 
@@ -169,27 +174,33 @@ export default function StatementPage() {
         .reduce((sum, t) => sum + t.amount, 0);
       
       const netChange = inflows - outflows;
-      runningBalance += netChange;
+      const monthEndingBalance = runningBalance + netChange;
+      runningBalance = monthEndingBalance;
 
       return {
         month: month,
         inflows,
         outflows,
         netChange,
-        endingBalance: runningBalance,
+        endingBalance: monthEndingBalance,
       };
     }).filter(Boolean) as { month: Date; inflows: number; outflows: number; netChange: number; endingBalance: number; }[];
 
-    const totalInflows = monthlyData.reduce((sum, entry) => sum + entry.inflows, 0);
-    const totalOutflows = monthlyData.reduce((sum, entry) => sum + entry.outflows, 0);
-    const endOfYearDate = endOfYear(selectedDate);
+    const yearTransactions = allTransactions.filter(t => {
+        const tDate = toDate(t.date);
+        return tDate && isWithinInterval(tDate, { start: yearStart, end: endOfYear(selectedDate) }) && (isBefore(tDate, today) || isEqual(tDate, today));
+    });
+
+    const totalInflows = yearTransactions.filter(t => t.category === 'Income').reduce((sum, t) => sum + t.amount, 0);
+    const totalOutflows = yearTransactions.filter(t => t.category !== 'Income').reduce((sum, t) => sum + t.amount, 0);
+    const endingBalance = beginningBalance + totalInflows - totalOutflows;
     
     return {
       monthlyData,
       beginningBalance,
       totalInflows,
       totalOutflows,
-      endingBalance: isAfter(today, endOfYearDate) ? beginningBalance + totalInflows - totalOutflows : runningBalance
+      endingBalance
     };
 
   }, [singleTransactions, recurringTransactions, selectedDate]);
@@ -227,6 +238,9 @@ export default function StatementPage() {
                         if(date) setSelectedDate(date);
                     }}
                     initialFocus
+                    captionLayout="dropdown-buttons" 
+                    fromYear={2020}
+                    toYear={new Date().getFullYear() + 5}
                 />
                 </PopoverContent>
             </Popover>
@@ -269,7 +283,7 @@ export default function StatementPage() {
             </CardHeader>
             <CardContent>
                 <div className="text-2xl font-bold">₱{endingBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                <p className="text-xs text-muted-foreground">{t('asOf')} {format(monthlyData[monthlyData.length-1]?.month || new Date(), "MMM d, yyyy")}</p>
+                <p className="text-xs text-muted-foreground">{t('asOf')} {format(new Date(), "MMM d, yyyy")}</p>
             </CardContent>
           </Card>
       </div>
