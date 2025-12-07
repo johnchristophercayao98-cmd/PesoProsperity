@@ -108,6 +108,8 @@ const expenseCategories = [
   'Marketing and Advertising',
   'Office Supplies',
   'Taxes',
+  'Loan',
+  'Interest',
   'Repairs and Maintenance',
   'Other',
 ];
