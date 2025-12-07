@@ -227,7 +227,7 @@ export function DebtManager() {
           date: new Date(),
           description: `Interest for ${selectedDebt.name}`,
           amount: interestComponent,
-          category: 'Liability',
+          category: 'Expense',
           subcategory: 'Interest', 
           paymentMethod: 'Bank Transfer',
         });
@@ -240,7 +240,7 @@ export function DebtManager() {
           date: new Date(),
           description: `Principal payment for ${selectedDebt.name}`,
           amount: principalComponent,
-          category: 'Liability',
+          category: 'Expense',
           subcategory: 'Loan', 
           paymentMethod: 'Bank Transfer',
         });
