@@ -259,7 +259,7 @@ export function DebtManager() {
                     <TableHead>Monthly Interest</TableHead>
                     <TableHead>Term (Months)</TableHead>
                     <TableHead className="w-[200px]">Progress</TableHead>
-                    <TableHead>Minimum Payment</TableHead>
+                    <TableHead>Monthly Due</TableHead>
                     <TableHead>
                       <span className="sr-only">Actions</span>
                     </TableHead>
@@ -451,7 +451,7 @@ export function DebtManager() {
                   name="minimumPayment"
                   render={({ field }) => (
                      <FormItem>
-                      <FormLabel>Minimum Payment (₱)</FormLabel>
+                      <FormLabel>Monthly Due (₱)</FormLabel>
                       <FormControl>
                         <Input type="number" placeholder="5000" {...field} />
                       </FormControl>
@@ -526,4 +526,5 @@ export function DebtManager() {
     
 
     
+
 
