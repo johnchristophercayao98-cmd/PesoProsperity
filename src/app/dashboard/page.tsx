@@ -155,23 +155,22 @@ export default function DashboardPage() {
     }
 
     const now = new Date();
-    const today = startOfDay(now);
     const monthStart = startOfMonth(now);
     const sixMonthsAgo = startOfMonth(subMonths(now, 5));
     const earliestDate = new Date(0);
 
-    const recurringForChart = generateTransactionInstances(recurringTransactions, sixMonthsAgo, today);
-    const recurringAllTime = generateTransactionInstances(recurringTransactions, earliestDate, today);
+    const recurringForChart = generateTransactionInstances(recurringTransactions, sixMonthsAgo, now);
+    const recurringAllTime = generateTransactionInstances(recurringTransactions, earliestDate, now);
 
     const allSingleTransactions = singleTransactions.filter(t => {
       const d = toDate(t.date);
-      return d && (isBefore(d, today) || isEqual(d, today));
+      return d && (isBefore(d, now) || isEqual(d, now));
     });
 
     const transactionsForChart = [
       ...allSingleTransactions.filter(t => {
         const d = toDate(t.date);
-        return d && isWithinInterval(d, { start: sixMonthsAgo, end: today });
+        return d && isWithinInterval(d, { start: sixMonthsAgo, end: now });
       }),
       ...recurringForChart
     ];
@@ -183,7 +182,7 @@ export default function DashboardPage() {
 
     const transactionsForMonth = allTransactions.filter(t => {
       const transactionDate = toDate(t.date);
-      return transactionDate && isWithinInterval(transactionDate, { start: monthStart, end: today });
+      return transactionDate && isWithinInterval(transactionDate, { start: monthStart, end: now });
     });
 
     const netRevenue = transactionsForMonth
