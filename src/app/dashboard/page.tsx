@@ -158,13 +158,14 @@ export default function DashboardPage() {
     const monthStart = startOfMonth(now);
     const sixMonthsAgo = startOfMonth(subMonths(now, 5));
     const earliestDate = new Date(0);
+    const today = startOfDay(new Date());
 
     const recurringForChart = generateTransactionInstances(recurringTransactions, sixMonthsAgo, now);
     const recurringAllTime = generateTransactionInstances(recurringTransactions, earliestDate, now);
 
     const allSingleTransactions = singleTransactions.filter(t => {
       const d = toDate(t.date);
-      return d && (isBefore(d, now) || isEqual(d, now));
+      return d && (isBefore(d, today) || isEqual(d, today));
     });
 
     const transactionsForChart = [
@@ -190,7 +191,7 @@ export default function DashboardPage() {
       .reduce((sum, t) => sum + t.amount, 0);
 
     const totalExpenses = transactionsForMonth
-      .filter(t => t.category === 'Expense' || t.category === 'Liability')
+      .filter(t => t.category === 'Expense')
       .reduce((sum, t) => sum + t.amount, 0);
 
     const profitMargin = netRevenue > 0 ? ((netRevenue - totalExpenses) / netRevenue) * 100 : 0;
@@ -211,7 +212,7 @@ export default function DashboardPage() {
       });
 
       const income = monthTransactions.filter(t => t.category === 'Income').reduce((sum, t) => sum + t.amount, 0);
-      const expenses = monthTransactions.filter(t => t.category === 'Expense' || t.category === 'Liability').reduce((sum, t) => sum + t.amount, 0);
+      const expenses = monthTransactions.filter(t => t.category === 'Expense').reduce((sum, t) => sum + t.amount, 0);
 
       return { month: format(date, 'MMM'), income, expenses };
     });
@@ -360,3 +361,5 @@ export default function DashboardPage() {
     </div>
   )
 }
+
+    
