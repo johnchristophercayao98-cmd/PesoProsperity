@@ -77,7 +77,7 @@ import {
   updateDocumentNonBlocking,
   deleteDocumentNonBlocking,
 } from '@/firebase';
-import { collection, doc, Timestamp, query } from 'firebase/firestore';
+import { collection, doc, Timestamp, query, getDoc, runTransaction } from 'firebase/firestore';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useLanguage } from '@/context/language-context';
 
@@ -251,24 +251,60 @@ export function TransactionList() {
     setIsDialogOpen(true);
   };
 
-  const handleDelete = () => {
-    if (!transactionToDelete || !user) return;
-     // We can only delete non-recurring transactions through this UI
+  const handleDelete = async () => {
+    if (!transactionToDelete || !user || !firestore) return;
+
     if (transactionToDelete.description.includes('(Recurring)')) {
         toast({
             variant: "destructive",
             title: "Cannot Delete Recurring Transaction",
             description: "Please delete the recurring transaction from the Recurring Transactions page."
-        })
+        });
         setTransactionToDelete(null);
         return;
     }
+    
     const transactionRef = doc(firestore, 'users', user.uid, 'expenses', transactionToDelete.id);
-    deleteDocumentNonBlocking(transactionRef);
-    toast({
-      title: 'Transaction Deleted!',
-      description: 'The transaction has been removed.',
-    });
+
+    // If it's a debt payment, revert the balance
+    if (transactionToDelete.debtId && transactionToDelete.principalAmount) {
+        const debtRef = doc(firestore, 'users', user.uid, 'debts', transactionToDelete.debtId);
+        try {
+            await runTransaction(firestore, async (transaction) => {
+                const debtDoc = await transaction.get(debtRef);
+                if (!debtDoc.exists()) {
+                    throw "Debt document not found!";
+                }
+                const currentBalance = debtDoc.data().currentBalance;
+                const newBalance = currentBalance + (transactionToDelete.principalAmount || 0);
+                transaction.update(debtRef, { currentBalance: newBalance });
+                transaction.delete(transactionRef);
+            });
+
+            toast({
+                title: 'Transaction Deleted!',
+                description: 'The transaction has been removed and the debt balance has been updated.',
+            });
+
+        } catch (e) {
+            console.error("Transaction failed: ", e);
+            toast({
+                variant: "destructive",
+                title: "Error Deleting Transaction",
+                description: "Could not update debt balance. Please try again.",
+            });
+        }
+
+    } else {
+        // Standard transaction deletion
+        deleteDocumentNonBlocking(transactionRef);
+        toast({
+        title: 'Transaction Deleted!',
+        description: 'The transaction has been removed.',
+        });
+    }
+
+
     setTransactionToDelete(null);
   };
 
@@ -585,3 +621,5 @@ export function TransactionList() {
     </>
   );
 }
+
+    

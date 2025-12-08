@@ -10,6 +10,9 @@ export type Transaction = {
   category: 'Income' | 'Expense' | 'Liability';
   subcategory: string;
   paymentMethod: string;
+  debtId?: string;
+  principalAmount?: number;
+  interestAmount?: number;
 };
 
 export type RecurringTransaction = {
@@ -62,4 +65,5 @@ export type Budget = {
   liabilities: BudgetCategory[];
 };
 
+    
     

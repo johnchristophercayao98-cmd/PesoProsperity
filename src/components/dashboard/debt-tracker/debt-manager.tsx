@@ -230,6 +230,8 @@ export function DebtManager() {
           category: 'Expense',
           subcategory: 'Interest', 
           paymentMethod: 'Bank Transfer',
+          debtId: selectedDebt.id,
+          interestAmount: interestComponent
         });
     }
 
@@ -243,6 +245,8 @@ export function DebtManager() {
           category: 'Expense',
           subcategory: 'Loan', 
           paymentMethod: 'Bank Transfer',
+          debtId: selectedDebt.id,
+          principalAmount: principalComponent
         });
     }
     
@@ -609,4 +613,5 @@ export function DebtManager() {
 
     
 
+    
     
