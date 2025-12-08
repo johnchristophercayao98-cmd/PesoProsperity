@@ -174,7 +174,7 @@ export default function StatementPage() {
       const outflows = allTransactions
         .filter(t => {
           const transactionDate = toDate(t.date);
-          return transactionDate && isWithinInterval(transactionDate, { start: monthStartLoop, end: monthEndLoop }) && (t.category === 'Expense' || t.category === 'Liability');
+          return transactionDate && isWithinInterval(transactionDate, { start: monthStartLoop, end: monthEndLoop }) && t.category !== 'Income';
         })
         .reduce((sum, t) => sum + t.amount, 0);
       
@@ -198,7 +198,7 @@ export default function StatementPage() {
     });
 
     const totalInflows = selectedMonthTransactions.filter(t => t.category === 'Income').reduce((sum, t) => sum + t.amount, 0);
-    const totalOutflows = selectedMonthTransactions.filter(t => t.category === 'Expense' || t.category === 'Liability').reduce((sum, t) => sum + t.amount, 0);
+    const totalOutflows = selectedMonthTransactions.filter(t => t.category !== 'Income').reduce((sum, t) => sum + t.amount, 0);
     
     const endingBalance = runningBalance;
     
@@ -340,5 +340,7 @@ export default function StatementPage() {
     </div>
   )
 }
+
+    
 
     
