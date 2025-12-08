@@ -391,25 +391,25 @@ export function BudgetTabs() {
         budgeted: data.budgeted,
       };
 
-      let updatedIncome = budget?.income
-        ? [...budget.income.map(({ actual, ...rest }) => rest)]
-        : [];
-      let updatedExpenses = budget?.expenses
-        ? [...budget.expenses.map(({ actual, ...rest }) => rest)]
-        : [];
-       let updatedLiabilities = budget?.liabilities
-        ? [...budget.liabilities.map(({ actual, ...rest }) => rest)]
-        : [];
-
-      if (data.type === 'income') {
-        updatedIncome.push(newCategory);
-      } else if (data.type === 'expense') {
-        updatedExpenses.push(newCategory);
-      } else { // liability
-        updatedLiabilities.push(newCategory);
-      }
-
       if (budget) {
+        let updatedIncome = budget?.income
+          ? [...budget.income.map(({ actual, ...rest }) => rest)]
+          : [];
+        let updatedExpenses = budget?.expenses
+          ? [...budget.expenses.map(({ actual, ...rest }) => rest)]
+          : [];
+        let updatedLiabilities = budget?.liabilities
+          ? [...budget.liabilities.map(({ actual, ...rest }) => rest)]
+          : [];
+
+        if (data.type === 'income') {
+          updatedIncome.push(newCategory);
+        } else if (data.type === 'expense') {
+          updatedExpenses.push(newCategory);
+        } else { // liability
+          updatedLiabilities.push(newCategory);
+        }
+        
         const budgetRef = doc(
           firestore,
           'users',
