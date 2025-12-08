@@ -9,8 +9,6 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  Input,
-  Label,
   Tabs,
   TabsContent,
   TabsList,
@@ -68,17 +66,10 @@ import { ResponsiveContainer, Pie, PieChart, Cell } from 'recharts';
 import { useToast } from '@/hooks/use-toast';
 import {
   Loader2,
-  Upload,
-  FileText,
   PlusCircle,
   Calendar as CalendarIcon,
   MoreVertical,
-  X,
 } from 'lucide-react';
-import {
-  suggestMonthlyBudget,
-  SuggestMonthlyBudgetOutput,
-} from '@/ai/flows/automated-budget-suggestions';
 import type { Budget, BudgetCategory } from '@/lib/types';
 import type { Transaction, RecurringTransaction } from '@/lib/types';
 import {
@@ -229,11 +220,6 @@ const generateTransactionInstances = (
 export function BudgetTabs() {
   const { t } = useLanguage();
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
-  const [aiResult, setAiResult] = useState<SuggestMonthlyBudgetOutput | null>(
-    null
-  );
-  const [fileName, setFileName] = useState<string | null>(null);
   const [isAddBudgetItemDialogOpen, setIsAddBudgetItemDialogOpen] =
     useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -493,62 +479,6 @@ export function BudgetTabs() {
     setItemToDelete(null);
   };
 
-  const handleFileChange = async (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setIsLoading(true);
-    setFileName(file.name);
-    setAiResult(null);
-
-    try {
-      const content = await file.text();
-      const result = await suggestMonthlyBudget({ financialData: content });
-
-      if (
-        result.summary &&
-        result.summary.toLowerCase().includes('could not be processed')
-      ) {
-        toast({
-          variant: 'destructive',
-          title: 'AI Analysis Error',
-          description:
-            'The AI could not process the uploaded file. Please check the format and try again.',
-        });
-        setAiResult(null);
-      } else {
-        setAiResult(result);
-        toast({
-          title: 'AI Budget Suggestion Ready!',
-          description: 'Your automated budget suggestion has been generated.',
-        });
-      }
-    } catch (error) {
-      console.error('Error processing file with AI:', error);
-      toast({
-        variant: 'destructive',
-        title: 'An Error Occurred',
-        description: 'Could not process the file. Please try again.',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleRemoveFile = () => {
-    setFileName(null);
-    setAiResult(null);
-    // Reset the file input element
-    const fileInput = document.getElementById(
-      'financial-data-file'
-    ) as HTMLInputElement;
-    if (fileInput) {
-      fileInput.value = '';
-    }
-  };
-
   const renderBudgetTable = (
     title: string,
     data: any[],
@@ -680,38 +610,11 @@ export function BudgetTabs() {
     );
   };
 
-  const renderAiSuggestionTable = (title: string, data: any[]) => (
-    <div className="mb-6">
-      <h3 className="text-lg font-semibold mb-2">{title}</h3>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Category</TableHead>
-            <TableHead className="text-right">Suggested Amount</TableHead>
-            <TableHead>Recommendation</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {data.map((item) => (
-            <TableRow key={item.category}>
-              <TableCell className="font-medium">{item.category}</TableCell>
-              <TableCell className="text-right">
-                ₱{item.amount.toLocaleString()}
-              </TableCell>
-              <TableCell className="text-muted-foreground">{item.recommendation}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
-  );
-
   return (
     <>
       <Tabs defaultValue="manual">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-1">
           <TabsTrigger value="manual">Manual Budget</TabsTrigger>
-          <TabsTrigger value="ai">AI Budget Suggester</TabsTrigger>
         </TabsList>
         <TabsContent value="manual">
           <Card>
@@ -801,79 +704,6 @@ export function BudgetTabs() {
                     Create Budget
                   </Button>
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-        <TabsContent value="ai">
-          <Card>
-            <CardHeader>
-              <CardTitle>AI Budget Suggester</CardTitle>
-              <CardDescription>
-                Upload a CSV, PDF, or Excel file of your financial data to get a
-                personalized budget suggestion.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="financial-data-file" className="sr-only">
-                  Upload File
-                </Label>
-                <Input
-                  id="financial-data-file"
-                  type="file"
-                  accept=".csv, text/csv, application/pdf, application/vnd.ms-excel, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                  className="hidden"
-                  onChange={handleFileChange}
-                  disabled={isLoading || !!fileName}
-                />
-                <Button
-                  asChild
-                  variant="outline"
-                  className="w-full cursor-pointer"
-                  disabled={isLoading || !!fileName}
-                >
-                  <label htmlFor="financial-data-file">
-                    <Upload className="mr-2 h-4 w-4" />
-                    Choose a file
-                  </label>
-                </Button>
-              </div>
-              {isLoading && (
-                <div className="flex items-center justify-center p-8">
-                  <Loader2 className="mr-2 h-8 w-8 animate-spin" />
-                  <p>AI is analyzing your data...</p>
-                </div>
-              )}
-              {fileName && !isLoading && (
-                <div className="flex items-center justify-between p-3 rounded-md border bg-secondary/50">
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-5 w-5 text-primary" />
-                    <span className="text-sm font-medium">{fileName}</span>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6"
-                    onClick={handleRemoveFile}
-                  >
-                    <X className="h-4 w-4" />
-                    <span className="sr-only">Remove file</span>
-                  </Button>
-                </div>
-              )}
-              {aiResult && (
-                <Card className="bg-secondary/50">
-                  <CardHeader>
-                    <CardTitle>Suggested Budget</CardTitle>
-                    <CardDescription>{aiResult.summary}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {renderAiSuggestionTable('Income', aiResult.income)}
-                    {renderAiSuggestionTable('Expenses', aiResult.expenses)}
-                    {renderAiSuggestionTable('Savings', aiResult.savings)}
-                  </CardContent>
-                </Card>
               )}
             </CardContent>
           </Card>
