@@ -156,18 +156,29 @@ export default function DashboardPage() {
 
     const now = new Date();
     const today = startOfDay(now);
+    const monthStart = startOfMonth(now);
     
+    // Generate transactions for the current month for the cards
+    const recurringForMonth = generateTransactionInstances(recurringTransactions, monthStart, today);
+    const transactionsForMonth = [...singleTransactions, ...recurringForMonth].filter(t => {
+      const transactionDate = toDate(t.date);
+      return transactionDate && isWithinInterval(transactionDate, { start: monthStart, end: today });
+    });
+    
+    const netRevenue = transactionsForMonth.filter(t => t.category === 'Income').reduce((sum, t) => sum + t.amount, 0);
+    const totalExpenses = transactionsForMonth.filter(t => t.category === 'Expense' || t.category === 'Liability' || t.subcategory === 'Interest').reduce((sum, t) => sum + t.amount, 0);
+    const profitMargin = netRevenue > 0 ? ((netRevenue - totalExpenses) / netRevenue) * 100 : 0;
+    
+    // Calculate cash reserve from all-time transactions
     const recurringAllTime = generateTransactionInstances(recurringTransactions, new Date(0), today);
     const allTransactions = [...singleTransactions, ...recurringAllTime].filter(t => {
         const transactionDate = toDate(t.date);
         return transactionDate && (isBefore(transactionDate, today) || isEqual(transactionDate, today));
     });
+    const allTimeIncome = allTransactions.filter(t => t.category === 'Income').reduce((sum, t) => sum + t.amount, 0);
+    const allTimeOutflows = allTransactions.filter(t => t.category !== 'Income').reduce((sum, t) => sum + t.amount, 0);
+    const cashReserve = allTimeIncome - allTimeOutflows;
 
-    const netRevenue = allTransactions.filter(t => t.category === 'Income').reduce((sum, t) => sum + t.amount, 0);
-    const totalExpenses = allTransactions.filter(t => t.category === 'Expense').reduce((sum, t) => sum + t.amount, 0);
-    const cashReserve = netRevenue - allTransactions.filter(t => t.category !== 'Income').reduce((sum,t) => sum + t.amount, 0);
-    const profitMargin = netRevenue > 0 ? ((netRevenue - totalExpenses) / netRevenue) * 100 : 0;
-    
     const sixMonthsAgo = startOfMonth(subMonths(now, 5));
     const transactionsForChart = allTransactions.filter(t => {
       const transactionDate = toDate(t.date);
@@ -201,17 +212,17 @@ export default function DashboardPage() {
     {
       title: t('netRevenue'),
       value: `₱${netRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      change: t('allTimeTotal'),
+      change: t('totalIncomeIn') + ' ' + format(new Date(), 'MMMM'),
     },
     {
       title: t('totalExpenses'),
       value: `₱${totalExpenses.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      change: t('allTimeTotal'),
+      change: t('totalExpensesIn') + ' ' + format(new Date(), 'MMMM'),
     },
     {
       title: t('profitMargin'),
       value: `${profitMargin.toFixed(1)}%`,
-      change: t('allTimeTotal'),
+      change: t('totalIncomeIn') + ' ' + format(new Date(), 'MMMM'),
     },
     {
       title: t('cashReserve'),
