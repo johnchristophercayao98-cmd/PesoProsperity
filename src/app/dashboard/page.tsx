@@ -166,7 +166,7 @@ export default function DashboardPage() {
     });
     
     const netRevenue = transactionsForMonth.filter(t => t.category === 'Income').reduce((sum, t) => sum + t.amount, 0);
-    const totalExpenses = transactionsForMonth.filter(t => t.category === 'Expense' || t.category === 'Liability' || t.subcategory === 'Interest').reduce((sum, t) => sum + t.amount, 0);
+    const totalExpenses = transactionsForMonth.filter(t => t.category === 'Expense' || t.category === 'Liability').reduce((sum, t) => sum + t.amount, 0);
     const profitMargin = netRevenue > 0 ? ((netRevenue - totalExpenses) / netRevenue) * 100 : 0;
     
     // Calculate cash reserve from all-time transactions
