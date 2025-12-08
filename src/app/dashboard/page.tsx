@@ -158,7 +158,7 @@ export default function DashboardPage() {
     const monthStart = startOfMonth(now);
     const sixMonthsAgo = startOfMonth(subMonths(now, 5));
     const earliestDate = new Date(0);
-    const today = startOfDay(new Date());
+    const today = new Date(); // Use new Date() to include current time
 
     const recurringForChart = generateTransactionInstances(recurringTransactions, sixMonthsAgo, now);
     const recurringAllTime = generateTransactionInstances(recurringTransactions, earliestDate, now);
