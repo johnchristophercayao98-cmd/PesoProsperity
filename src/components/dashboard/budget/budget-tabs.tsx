@@ -53,6 +53,7 @@ import {
   ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
+  Input,
 } from '@/components/ui';
 import {
   Form,
