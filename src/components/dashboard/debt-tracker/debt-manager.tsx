@@ -242,7 +242,7 @@ export function DebtManager() {
           date: new Date(),
           description: `Principal payment for ${selectedDebt.name}`,
           amount: principalComponent,
-          category: 'Expense',
+          category: 'Liability',
           subcategory: 'Loan', 
           paymentMethod: 'Bank Transfer',
           debtId: selectedDebt.id,

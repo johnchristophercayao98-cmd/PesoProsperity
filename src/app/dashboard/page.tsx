@@ -185,7 +185,7 @@ export default function DashboardPage() {
       });
 
       const income = monthTransactions.filter(t => t.category === 'Income').reduce((sum, t) => sum + t.amount, 0);
-      const expenses = monthTransactions.filter(t => t.category !== 'Income').reduce((sum, t) => sum + t.amount, 0);
+      const expenses = monthTransactions.filter(t => t.category === 'Expense').reduce((sum, t) => sum + t.amount, 0);
 
       return { month: format(date, 'MMM'), income, expenses };
     });
