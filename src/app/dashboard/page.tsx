@@ -156,35 +156,51 @@ export default function DashboardPage() {
 
     const now = new Date();
     const today = startOfDay(now);
-    const monthStart = startOfMonth(now);
-    
-    // Generate transactions for the current month for the cards
-    const recurringForMonth = generateTransactionInstances(recurringTransactions, monthStart, today);
-    const transactionsForMonth = [...singleTransactions, ...recurringForMonth].filter(t => {
-      const transactionDate = toDate(t.date);
-      return transactionDate && isWithinInterval(transactionDate, { start: monthStart, end: today });
-    });
-    
-    const netRevenue = transactionsForMonth.filter(t => t.category === 'Income').reduce((sum, t) => sum + t.amount, 0);
-    const totalExpenses = transactionsForMonth.filter(t => t.category === 'Expense' || t.category === 'Liability').reduce((sum, t) => sum + t.amount, 0);
-    const profitMargin = netRevenue > 0 ? ((netRevenue - totalExpenses) / netRevenue) * 100 : 0;
-    
-    // Calculate cash reserve from all-time transactions
-    const recurringAllTime = generateTransactionInstances(recurringTransactions, new Date(0), today);
-    const allTransactions = [...singleTransactions, ...recurringAllTime].filter(t => {
+    const sixMonthsAgo = startOfMonth(subMonths(now, 5));
+    const earliestDate = new Date(0); // For all-time calculations
+
+    // Generate recurring instances efficiently
+    const recurringForChart = generateTransactionInstances(recurringTransactions, sixMonthsAgo, today);
+    const recurringAllTime = generateTransactionInstances(recurringTransactions, earliestDate, today);
+
+    // Combine transactions for chart period
+    const transactionsForChart = [
+      ...singleTransactions.filter(t => {
+        const d = toDate(t.date);
+        return d && isWithinInterval(d, { start: sixMonthsAgo, end: today });
+      }),
+      ...recurringForChart
+    ];
+
+    // Combine all transactions for all-time calculations
+     const allTransactions = [
+      ...singleTransactions,
+      ...recurringAllTime
+    ].filter(t => {
         const transactionDate = toDate(t.date);
         return transactionDate && (isBefore(transactionDate, today) || isEqual(transactionDate, today));
     });
 
+    const monthStart = startOfMonth(now);
+    const transactionsForMonth = allTransactions.filter(t => {
+      const transactionDate = toDate(t.date);
+      return transactionDate && isWithinInterval(transactionDate, { start: monthStart, end: today });
+    });
+
+    const netRevenue = transactionsForMonth
+      .filter(t => t.category === 'Income')
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const totalExpenses = transactionsForMonth
+      .filter(t => t.category === 'Expense' || t.category === 'Liability')
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const profitMargin = netRevenue > 0 ? ((netRevenue - totalExpenses) / netRevenue) * 100 : 0;
+    
     const allTimeIncome = allTransactions.filter(t => t.category === 'Income').reduce((sum, t) => sum + t.amount, 0);
     const allTimeOutflows = allTransactions.filter(t => t.category !== 'Income').reduce((sum, t) => sum + t.amount, 0);
     const cashReserve = allTimeIncome - allTimeOutflows;
 
-    const sixMonthsAgo = startOfMonth(subMonths(now, 5));
-    const transactionsForChart = allTransactions.filter(t => {
-      const transactionDate = toDate(t.date);
-      return transactionDate && isWithinInterval(transactionDate, { start: sixMonthsAgo, end: today });
-    });
 
     const chartData = Array.from({ length: 6 }).map((_, i) => {
       const date = subMonths(now, 5 - i);
@@ -346,5 +362,7 @@ export default function DashboardPage() {
     </div>
   )
 }
+
+    
 
     

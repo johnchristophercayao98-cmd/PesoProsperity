@@ -118,28 +118,19 @@ export default function StatementPage() {
     const monthStart = startOfMonth(selectedDate);
     const today = startOfDay(new Date());
 
-    // We need all transactions from the beginning of time to calculate balances correctly
-    const earliestSingleDate = singleTransactions.length > 0 ? toDate(singleTransactions[0].date) : null;
-    const earliestRecurringDate = recurringTransactions.length > 0 
-        ? recurringTransactions.map(rt => toDate(rt.startDate)).reduce((earliest, current) => (current && earliest && current < earliest) ? current : earliest, toDate(recurringTransactions[0].startDate))
-        : null;
+    // Define the overall period for which we need data (all-time up to today for balances)
+    const allTimeStart = new Date(0);
+    
+    // Generate recurring instances efficiently only for the required period
+    const recurringInstancesAllTime = generateTransactionInstances(recurringTransactions, allTimeStart, today);
 
-    let earliestTransactionDate = new Date(0);
-    if (earliestSingleDate && earliestRecurringDate) {
-        earliestTransactionDate = earliestSingleDate < earliestRecurringDate ? earliestSingleDate : earliestRecurringDate;
-    } else if (earliestSingleDate) {
-        earliestTransactionDate = earliestSingleDate;
-    } else if (earliestRecurringDate) {
-        earliestTransactionDate = earliestRecurringDate;
-    }
-
-    const recurringInstancesAllTime = generateTransactionInstances(recurringTransactions, earliestTransactionDate, today);
-
+    // Combine all transactions that have occurred up to today
     const allTransactions = [...singleTransactions, ...recurringInstancesAllTime].filter(t => {
         const transactionDate = toDate(t.date);
         return transactionDate && (isBefore(transactionDate, today) || isEqual(transactionDate, today));
     });
 
+    // Calculate beginning balance for the selected month
     const beginningBalance = allTransactions
       .filter(t => {
         const transactionDate = toDate(t.date);
@@ -147,13 +138,15 @@ export default function StatementPage() {
       })
       .reduce((acc, t) => acc + (t.category === 'Income' ? t.amount : -t.amount), 0);
       
-    const monthsInYear = eachMonthOfInterval({ start: yearStart, end: endOfYear(selectedDate) });
+    // Calculate initial balance at the start of the selected year
     let runningBalance = allTransactions
         .filter(t => {
             const transactionDate = toDate(t.date);
             return transactionDate && isBefore(transactionDate, yearStart);
         })
         .reduce((acc, t) => acc + (t.category === 'Income' ? t.amount : -t.amount), 0);
+
+    const monthsInYear = eachMonthOfInterval({ start: yearStart, end: endOfYear(selectedDate) });
 
     const monthlyData = monthsInYear.map(month => {
       // Only calculate for months up to and including the current month of the current year
@@ -180,7 +173,7 @@ export default function StatementPage() {
       
       const netChange = inflows - outflows;
       const monthEndingBalance = runningBalance + netChange;
-      runningBalance = monthEndingBalance;
+      runningBalance = monthEndingBalance; // Update running balance for the next month
 
       return {
         month: month,
@@ -191,15 +184,18 @@ export default function StatementPage() {
       };
     }).filter(Boolean) as { month: Date; inflows: number; outflows: number; netChange: number; endingBalance: number; }[];
 
+    // Calculate totals for the selected month for the cards
     const monthEnd = endOfMonth(selectedDate);
     const selectedMonthTransactions = allTransactions.filter(t => {
         const tDate = toDate(t.date);
-        return tDate && isWithinInterval(tDate, { start: monthStart, end: monthEnd }) && (isBefore(tDate, today) || isEqual(tDate, today));
+        // Ensure we only include transactions within the selected month up to today
+        return tDate && isWithinInterval(tDate, { start: monthStart, end: monthEnd > today ? today : monthEnd });
     });
 
     const totalInflows = selectedMonthTransactions.filter(t => t.category === 'Income').reduce((sum, t) => sum + t.amount, 0);
     const totalOutflows = selectedMonthTransactions.filter(t => t.category === 'Expense' || t.category === 'Liability').reduce((sum, t) => sum + t.amount, 0);
     
+    // The final ending balance is the last calculated running balance
     const endingBalance = runningBalance;
     
     return {
@@ -340,3 +336,5 @@ export default function StatementPage() {
     </div>
   )
 }
+
+    
