@@ -164,8 +164,13 @@ export default function DashboardPage() {
     const recurringForChart = generateTransactionInstances(recurringTransactions, sixMonthsAgo, today);
     const recurringAllTime = generateTransactionInstances(recurringTransactions, earliestDate, today);
 
+    const allSingleTransactions = singleTransactions.filter(t => {
+      const d = toDate(t.date);
+      return d && (isBefore(d, today) || isEqual(d, today));
+    });
+
     const transactionsForChart = [
-      ...singleTransactions.filter(t => {
+      ...allSingleTransactions.filter(t => {
         const d = toDate(t.date);
         return d && isWithinInterval(d, { start: sixMonthsAgo, end: today });
       }),
@@ -173,12 +178,9 @@ export default function DashboardPage() {
     ];
 
      const allTransactions = [
-      ...singleTransactions,
+      ...allSingleTransactions,
       ...recurringAllTime
-    ].filter(t => {
-        const transactionDate = toDate(t.date);
-        return transactionDate && (isBefore(transactionDate, today) || isEqual(transactionDate, today));
-    });
+    ];
 
     const transactionsForMonth = allTransactions.filter(t => {
       const transactionDate = toDate(t.date);
@@ -360,3 +362,5 @@ export default function DashboardPage() {
     </div>
   )
 }
+
+    

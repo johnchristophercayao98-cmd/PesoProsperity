@@ -124,11 +124,13 @@ export default function StatementPage() {
     // Generate recurring instances efficiently only for the required period
     const recurringInstancesAllTime = generateTransactionInstances(recurringTransactions, allTimeStart, today);
 
-    // Combine all transactions that have occurred up to today
-    const allTransactions = [...singleTransactions, ...recurringInstancesAllTime].filter(t => {
-        const transactionDate = toDate(t.date);
-        return transactionDate && (isBefore(transactionDate, today) || isEqual(transactionDate, today));
+    const allSingleTransactions = singleTransactions.filter(t => {
+      const d = toDate(t.date);
+      return d && (isBefore(d, today) || isEqual(d, today));
     });
+
+    // Combine all transactions that have occurred up to today
+    const allTransactions = [...allSingleTransactions, ...recurringInstancesAllTime];
 
     // Calculate beginning balance for the selected month
     const beginningBalance = allTransactions
@@ -336,5 +338,7 @@ export default function StatementPage() {
     </div>
   )
 }
+
+    
 
     
