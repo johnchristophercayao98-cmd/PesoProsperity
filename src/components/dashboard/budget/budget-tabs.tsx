@@ -301,7 +301,10 @@ export function BudgetTabs() {
       return categories.map((category) => {
         const actual = monthlyTransactions
           .filter(
-            (t) => t.category === type && t.subcategory === category.name
+            (t) => {
+              if (type === 'Income') return t.category === 'Income' && t.subcategory === category.name;
+              return (t.category === 'Expense' || t.category === 'Liability') && t.subcategory === category.name
+            }
           )
           .reduce((sum, t) => sum + t.amount, 0);
         return { ...category, actual };
