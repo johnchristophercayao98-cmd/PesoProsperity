@@ -175,6 +175,7 @@ export default function DashboardPage() {
         const transactionDate = toDate(t.date);
         return transactionDate && (isBefore(transactionDate, today) || isEqual(transactionDate, today));
     });
+
     const allTimeIncome = allTransactions.filter(t => t.category === 'Income').reduce((sum, t) => sum + t.amount, 0);
     const allTimeOutflows = allTransactions.filter(t => t.category !== 'Income').reduce((sum, t) => sum + t.amount, 0);
     const cashReserve = allTimeIncome - allTimeOutflows;
@@ -187,16 +188,16 @@ export default function DashboardPage() {
 
     const chartData = Array.from({ length: 6 }).map((_, i) => {
       const date = subMonths(now, 5 - i);
-      const monthStart = startOfMonth(date);
-      const monthEnd = endOfMonth(date);
+      const monthStartChart = startOfMonth(date);
+      const monthEndChart = endOfMonth(date);
       
       const monthTransactions = transactionsForChart.filter(t => {
         const transactionDate = toDate(t.date);
-        return transactionDate && isWithinInterval(transactionDate, { start: monthStart, end: monthEnd });
+        return transactionDate && isWithinInterval(transactionDate, { start: monthStartChart, end: monthEndChart });
       });
 
       const income = monthTransactions.filter(t => t.category === 'Income').reduce((sum, t) => sum + t.amount, 0);
-      const expenses = monthTransactions.filter(t => t.category === 'Expense').reduce((sum, t) => sum + t.amount, 0);
+      const expenses = monthTransactions.filter(t => t.category === 'Expense' || t.category === 'Liability').reduce((sum, t) => sum + t.amount, 0);
 
       return { month: format(date, 'MMM'), income, expenses };
     });
@@ -345,3 +346,5 @@ export default function DashboardPage() {
     </div>
   )
 }
+
+    
