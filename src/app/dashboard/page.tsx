@@ -164,8 +164,8 @@ export default function DashboardPage() {
     });
 
     const netRevenue = allTransactions.filter(t => t.category === 'Income').reduce((sum, t) => sum + t.amount, 0);
-    const totalExpenses = allTransactions.filter(t => t.category === 'Expense' || t.subcategory === 'Interest').reduce((sum, t) => sum + t.amount, 0);
-    const cashReserve = netRevenue - totalExpenses;
+    const totalExpenses = allTransactions.filter(t => t.category === 'Expense').reduce((sum, t) => sum + t.amount, 0);
+    const cashReserve = netRevenue - allTransactions.filter(t => t.category !== 'Income').reduce((sum,t) => sum + t.amount, 0);
     const profitMargin = netRevenue > 0 ? ((netRevenue - totalExpenses) / netRevenue) * 100 : 0;
     
     const sixMonthsAgo = startOfMonth(subMonths(now, 5));
