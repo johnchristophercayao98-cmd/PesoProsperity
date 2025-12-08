@@ -116,12 +116,12 @@ export default function StatementPage() {
     
     const yearStart = startOfYear(selectedDate);
     const monthStart = startOfMonth(selectedDate);
-    const today = startOfDay(new Date());
+    const today = new Date(); // Use new Date() for accurate, up-to-the-moment data
 
     // Define the overall period for which we need data (all-time up to today for balances)
     const allTimeStart = new Date(0);
     
-    // Generate recurring instances efficiently only for the required period
+    // Generate recurring instances efficiently only for the required period up to today
     const recurringInstancesAllTime = generateTransactionInstances(recurringTransactions, allTimeStart, today);
 
     const allSingleTransactions = singleTransactions.filter(t => {
@@ -152,24 +152,27 @@ export default function StatementPage() {
 
     const monthlyData = monthsInYear.map(month => {
       // Only calculate for months up to and including the current month of the current year
-      if (isAfter(month, today)) {
+      if (isAfter(month, startOfDay(today))) {
         return null;
       }
       
       const monthStartLoop = startOfMonth(month);
       const monthEndLoop = endOfMonth(month);
+      
+      // For current month, only calculate up to current time
+      const periodEnd = isBefore(monthEndLoop, today) ? monthEndLoop : today;
 
       const inflows = allTransactions
         .filter(t => {
           const transactionDate = toDate(t.date);
-          return transactionDate && isWithinInterval(transactionDate, { start: monthStartLoop, end: monthEndLoop }) && t.category === 'Income';
+          return transactionDate && isWithinInterval(transactionDate, { start: monthStartLoop, end: periodEnd }) && t.category === 'Income';
         })
         .reduce((sum, t) => sum + t.amount, 0);
 
       const outflows = allTransactions
         .filter(t => {
           const transactionDate = toDate(t.date);
-          return transactionDate && isWithinInterval(transactionDate, { start: monthStartLoop, end: monthEndLoop }) && (t.category === 'Expense' || t.category === 'Liability');
+          return transactionDate && isWithinInterval(transactionDate, { start: monthStartLoop, end: periodEnd }) && (t.category === 'Expense' || t.category === 'Liability');
         })
         .reduce((sum, t) => sum + t.amount, 0);
       
@@ -197,8 +200,8 @@ export default function StatementPage() {
     const totalInflows = selectedMonthTransactions.filter(t => t.category === 'Income').reduce((sum, t) => sum + t.amount, 0);
     const totalOutflows = selectedMonthTransactions.filter(t => t.category === 'Expense' || t.category === 'Liability').reduce((sum, t) => sum + t.amount, 0);
     
-    // The final ending balance is the last calculated running balance
-    const endingBalance = runningBalance;
+    // The final ending balance is the last calculated running balance up to today
+    const endingBalance = allTransactions.reduce((acc, t) => acc + (t.category === 'Income' ? t.amount : -t.amount), 0);
     
     return {
       monthlyData,
