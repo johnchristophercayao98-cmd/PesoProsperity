@@ -171,7 +171,7 @@ export function ReportGenerator() {
       const allTransactions = [...singleTransactions, ...allRecurringInstances];
 
 
-      if (allTransactions.length === 0 && reportType !== 'budget-variance') {
+      if (allTransactions.length === 0 && reportType !== 'budget-variance' && reportType !== 'debt-payoff-progress') {
         toast({
             variant: 'destructive',
             title: 'No Data Found',
@@ -381,7 +381,7 @@ export function ReportGenerator() {
         });
         
         const incomeCategories = [...new Set(transactionsInRange.filter(t => t.category === 'Income').map(t => t.subcategory))];
-        const expenseCategories = [...new Set(transactionsInRange.filter(t => t.category === 'Expense').map(t => t.subcategory))];
+        const expenseCategories = [...new Set(transactionsInRange.filter(t => t.category === 'Expense' || t.category === 'Liability').map(t => t.subcategory))];
 
         const monthlyData = monthsInPeriod.map(month => {
             const monthStart = startOfMonth(month);
@@ -398,7 +398,7 @@ export function ReportGenerator() {
             }, {} as Record<string, number>);
 
             const expenseByCategory = expenseCategories.reduce((acc, cat) => {
-                acc[cat] = transactionsThisMonth.filter(t => t.category === 'Expense' && t.subcategory === cat).reduce((sum, t) => sum + t.amount, 0);
+                acc[cat] = transactionsThisMonth.filter(t => (t.category === 'Expense' || t.category === 'Liability') && t.subcategory === cat).reduce((sum, t) => sum + t.amount, 0);
                 return acc;
             }, {} as Record<string, number>);
 
@@ -447,8 +447,48 @@ export function ReportGenerator() {
         for (const [title, values] of Object.entries(rows)) {
             csvContent += `"${title}",${values.join(',')}\n`;
         }
+      } else if (reportType === 'debt-payoff-progress') {
+        if (debts.length === 0) {
+            toast({ variant: 'destructive', title: 'No Debts Found', description: 'You have no debts recorded.' });
+            setIsGenerating(false);
+            return;
+        }
 
+        csvContent += '"Debt Payoff Progress Report"\n\n';
 
+        for (const debt of debts) {
+            const payments = allTransactions
+                .filter(t => t.debtId === debt.id && (t.category === 'Liability'))
+                .sort((a, b) => toDate(a.date)!.getTime() - toDate(b.date)!.getTime());
+
+            const firstPaymentDate = payments.length > 0 ? toDate(payments[0].date) : null;
+            const monthlyPayment = debt.monthlyPrincipal + (debt.principalAmount * (debt.interestRate / 100)) / 12;
+
+            const payoffDate = addMonths(firstPaymentDate || new Date(), debt.term);
+            const totalAmountToPay = monthlyPayment * debt.term;
+
+            csvContent += `DEBT NAME:,${debt.name},TOTAL AMOUNT TO PAY:,${formatCurrencyForCSV(totalAmountToPay)}\n`;
+            csvContent += `OUTSTANDING BALANCE:,${formatCurrencyForCSV(debt.currentBalance)},MINIMUM PAYMENT:,${formatCurrencyForCSV(monthlyPayment)}\n`;
+            csvContent += `MONTHS TO PAY:,${debt.term},PAYMENT START DATE:,${firstPaymentDate ? format(firstPaymentDate, 'd-MMM-yyyy') : 'N/A'}\n`;
+            csvContent += `INTEREST RATE:,"${debt.interestRate}%",PAYOFF DATE:,${format(payoffDate, 'd-MMM-yyyy')}\n\n`;
+
+            csvContent += 'NO.,PAYMENT DATE,PAYMENT AMOUNT,REMAINING BALANCE\n';
+            
+            let remainingBalance = debt.principalAmount;
+            payments.forEach((p, index) => {
+                const paymentAmount = (p.principalAmount || 0) + (p.interestAmount || 0);
+                remainingBalance -= (p.principalAmount || 0);
+                const paymentDate = toDate(p.date);
+
+                csvContent += [
+                    index + 1,
+                    paymentDate ? format(paymentDate, 'd-MMM-yyyy') : '',
+                    formatCurrencyForCSV(paymentAmount),
+                    formatCurrencyForCSV(remainingBalance)
+                ].join(',') + '\n';
+            });
+            csvContent += '\n\n';
+        }
       } else {
         // Fallback for other report types
         const headers = 'Date,Description,Category,Subcategory,Amount,PaymentMethod\n';
@@ -522,7 +562,7 @@ export function ReportGenerator() {
               <SelectItem value="budget-variance">
                 Budget vs Actual Variance
               </SelectItem>
-              <SelectItem value="debt-payoff">Debt Payoff Progress</SelectItem>
+              <SelectItem value="debt-payoff-progress">Debt Payoff Progress</SelectItem>
               <SelectItem value="cash-flow-statement">
                 Cash Flow Statement
               </SelectItem>
