@@ -52,6 +52,53 @@ const photoSchema = z.object({
 })
 type PhotoFormValues = z.infer<typeof photoSchema>;
 
+/**
+ * Resizes and compresses an image file on the client-side before upload.
+ * @param file The image file to process.
+ * @param maxWidth The maximum width of the output image.
+ * @param quality The quality of the output image (0 to 1).
+ * @returns A Promise that resolves with the compressed image as a Blob.
+ */
+function compressImage(file: File, maxWidth: number = 1024, quality: number = 0.8): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target?.result as string;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const scaleFactor = maxWidth / img.width;
+                const width = img.width > maxWidth ? maxWidth : img.width;
+                const height = img.width > maxWidth ? img.height * scaleFactor : img.height;
+
+                canvas.width = width;
+                canvas.height = height;
+
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    return reject(new Error('Failed to get canvas context'));
+                }
+
+                ctx.drawImage(img, 0, 0, width, height);
+
+                canvas.toBlob(
+                    (blob) => {
+                        if (!blob) {
+                            return reject(new Error('Canvas toBlob failed.'));
+                        }
+                        resolve(blob);
+                    },
+                    'image/jpeg',
+                    quality
+                );
+            };
+            img.onerror = reject;
+        };
+        reader.onerror = reject;
+    });
+}
+
 
 export default function SettingsPage() {
     const { user, isUserLoading } = useUser();
@@ -204,11 +251,13 @@ export default function SettingsPage() {
 
         setIsSavingPhoto(true);
         try {
-            const file = data.photo[0];
-            const filePath = `user-avatars/${user.uid}/${file.name}`;
+            const originalFile = data.photo[0];
+            const compressedBlob = await compressImage(originalFile);
+            
+            const filePath = `user-avatars/${user.uid}/${originalFile.name.split('.')[0]}.jpg`;
             const storageRef = ref(storage, filePath);
             
-            const uploadResult = await uploadBytes(storageRef, file);
+            const uploadResult = await uploadBytes(storageRef, compressedBlob);
             const downloadURL = await getDownloadURL(uploadResult.ref);
 
             await updateProfile(auth.currentUser, { photoURL: downloadURL });
@@ -473,5 +522,7 @@ export default function SettingsPage() {
 
 }
 
+
+    
 
     
