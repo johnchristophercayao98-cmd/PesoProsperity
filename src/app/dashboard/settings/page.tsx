@@ -244,7 +244,7 @@ export default function SettingsPage() {
     }
     
     const onPhotoSubmit = async (data: PhotoFormValues) => {
-        if (!user || !auth.currentUser) {
+        if (!user || !auth.currentUser || !userDocRef) {
             toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to update your profile.' });
             return;
         }
@@ -260,12 +260,11 @@ export default function SettingsPage() {
             const uploadResult = await uploadBytes(storageRef, compressedBlob);
             const downloadURL = await getDownloadURL(uploadResult.ref);
 
-            await updateProfile(auth.currentUser, { photoURL: downloadURL });
+            // Update Auth user profile (non-blocking for UI)
+            updateProfile(auth.currentUser, { photoURL: downloadURL });
             
-            const userDocRef = doc(firestore, 'users', user.uid);
+            // This is the key change: update Firestore directly and let real-time listeners handle the UI update.
             updateDocumentNonBlocking(userDocRef, { photoURL: downloadURL });
-            
-            await auth.currentUser.reload();
             
             toast({
                 title: t('profilePictureUpdated'),
@@ -332,7 +331,7 @@ export default function SettingsPage() {
                         <div className="flex flex-col items-center gap-4">
                             <div className="relative group">
                                 <Avatar className="h-32 w-32">
-                                    <AvatarImage src={user?.photoURL ?? undefined} alt={t('userAvatar')} />
+                                    <AvatarImage src={userProfile?.photoURL ?? user?.photoURL ?? undefined} alt={t('userAvatar')} />
                                     <AvatarFallback className="text-4xl">{getAvatarFallback()}</AvatarFallback>
                                 </Avatar>
                                 <Button
@@ -522,6 +521,8 @@ export default function SettingsPage() {
 
 }
 
+
+    
 
     
 
