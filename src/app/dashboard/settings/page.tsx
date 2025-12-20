@@ -108,7 +108,7 @@ export default function SettingsPage() {
     const { toast } = useToast();
     const [isSavingProfile, setIsSavingProfile] = useState(false);
     const [isSavingPassword, setIsSavingPassword] = useState(false);
-    const [isSavingPhoto, setIsSavingPhoto] = useState(false);
+    const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
     const [isPhotoDialogOpen, setIsPhotoDialogOpen] = useState(false);
     const { t, locale, setLocale } = useLanguage();
     
@@ -248,40 +248,56 @@ export default function SettingsPage() {
             toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to update your profile.' });
             return;
         }
-
-        setIsSavingPhoto(true);
+    
+        setIsProcessingPhoto(true);
+    
         try {
             const originalFile = data.photo[0];
             const compressedBlob = await compressImage(originalFile);
             
-            const filePath = `user-avatars/${user.uid}/${originalFile.name.split('.')[0]}.jpg`;
-            const storageRef = ref(storage, filePath);
-            
-            const uploadResult = await uploadBytes(storageRef, compressedBlob);
-            const downloadURL = await getDownloadURL(uploadResult.ref);
-
-            // Update Auth user profile (non-blocking for UI)
-            updateProfile(auth.currentUser, { photoURL: downloadURL });
-            
-            // This is the key change: update Firestore directly and let real-time listeners handle the UI update.
-            updateDocumentNonBlocking(userDocRef, { photoURL: downloadURL });
-            
+            // UI is now free, close dialog and show toast
+            setIsProcessingPhoto(false);
+            setIsPhotoDialogOpen(false);
+            photoForm.reset();
             toast({
                 title: t('profilePictureUpdated'),
                 description: t('avatarUpdatedSuccess'),
             });
-
-            setIsPhotoDialogOpen(false);
-            photoForm.reset();
-
+    
+            // Perform upload and update in the background
+            const uploadAndFinalize = async () => {
+                try {
+                    const filePath = `user-avatars/${user.uid}/${originalFile.name.split('.')[0]}.jpg`;
+                    const storageRef = ref(storage, filePath);
+                    
+                    const uploadResult = await uploadBytes(storageRef, compressedBlob);
+                    const downloadURL = await getDownloadURL(uploadResult.ref);
+        
+                    // Update Auth user profile and Firestore document with final URL
+                    await updateProfile(auth.currentUser!, { photoURL: downloadURL });
+                    await updateDocumentNonBlocking(userDocRef, { photoURL: downloadURL });
+                } catch (error: any) {
+                    console.error("Background photo upload failed:", error);
+                    // Optionally, show a failure toast here if you want to notify the user of background failures
+                     toast({
+                        variant: 'destructive',
+                        title: 'Background Update Failed',
+                        description: 'Could not save the new profile picture.',
+                    });
+                }
+            };
+    
+            // Execute without awaiting
+            uploadAndFinalize();
+    
         } catch (error: any) {
+             // This catch block now only handles compression errors
              toast({
                 variant: 'destructive',
-                title: 'Update Failed',
-                description: error.message || 'Could not upload image.',
+                title: 'Processing Failed',
+                description: error.message || 'Could not process the image.',
             });
-        } finally {
-            setIsSavingPhoto(false);
+            setIsProcessingPhoto(false);
         }
     }
 
@@ -509,8 +525,8 @@ export default function SettingsPage() {
                     </Form>
                     <DialogFooter>
                         <DialogClose asChild><Button variant="outline">{t('cancel')}</Button></DialogClose>
-                        <Button type="submit" form="photo-form" disabled={isSavingPhoto}>
-                            {isSavingPhoto && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        <Button type="submit" form="photo-form" disabled={isProcessingPhoto}>
+                            {isProcessingPhoto && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             {t('savePhoto')}
                         </Button>
                     </DialogFooter>
@@ -520,10 +536,5 @@ export default function SettingsPage() {
     )
 
 }
-
-
-    
-
-    
 
     
