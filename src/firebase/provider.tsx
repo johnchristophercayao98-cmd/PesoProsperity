@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { DependencyList, createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
@@ -33,6 +34,7 @@ export interface FirebaseContextState {
   user: User | null;
   isUserLoading: boolean; // True during initial auth check
   userError: Error | null; // Error from auth listener
+  setLocalUserPhoto: (photoURL: string) => void;
 }
 
 // Return type for useFirebase()
@@ -44,6 +46,7 @@ export interface FirebaseServicesAndUser {
   user: User | null;
   isUserLoading: boolean;
   userError: Error | null;
+  setLocalUserPhoto: (photoURL: string) => void;
 }
 
 // Return type for useUser() - specific to user auth state
@@ -71,6 +74,32 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     isUserLoading: true, // Start loading until first auth event
     userError: null,
   });
+
+  const setLocalUserPhoto = (photoURL: string) => {
+    setUserAuthState(prevState => {
+        if (prevState.user) {
+            // Create a new user object to ensure React detects the state change
+            const updatedUser = {
+                ...prevState.user,
+                photoURL: photoURL,
+            } as User;
+
+            // We need to proxy the user object to make it look like a real User object
+            const userProxy = new Proxy(updatedUser, {
+                get(target, prop) {
+                    if (prop in target) {
+                        return (target as any)[prop];
+                    }
+                    // Fallback to the original user object for methods and other properties
+                    return (prevState.user as any)[prop];
+                }
+            });
+
+            return { ...prevState, user: userProxy };
+        }
+        return prevState;
+    });
+  };
 
   // Effect to subscribe to Firebase auth state changes
   useEffect(() => {
@@ -106,6 +135,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       user: userAuthState.user,
       isUserLoading: userAuthState.isUserLoading,
       userError: userAuthState.userError,
+      setLocalUserPhoto,
     };
   }, [firebaseApp, firestore, auth, storage, userAuthState]);
 
@@ -140,6 +170,7 @@ export const useFirebase = (): FirebaseServicesAndUser => {
     user: context.user,
     isUserLoading: context.isUserLoading,
     userError: context.userError,
+    setLocalUserPhoto: context.setLocalUserPhoto,
   };
 };
 

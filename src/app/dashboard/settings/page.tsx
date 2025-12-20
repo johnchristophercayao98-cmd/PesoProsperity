@@ -4,7 +4,7 @@
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button, Input, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, Avatar, AvatarImage, AvatarFallback, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { useAuth, useFirestore, useUser, useStorage, useDoc, useMemoFirebase } from "@/firebase";
+import { useAuth, useFirestore, useUser, useStorage, useDoc, useMemoFirebase, useFirebase } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { updateProfile, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "firebase/auth";
@@ -102,6 +102,7 @@ function compressImage(file: File, maxWidth: number = 1024, quality: number = 0.
 
 export default function SettingsPage() {
     const { user, isUserLoading } = useUser();
+    const { setLocalUserPhoto } = useFirebase();
     const auth = useAuth();
     const firestore = useFirestore();
     const storage = useStorage();
@@ -118,8 +119,6 @@ export default function SettingsPage() {
     }, [firestore, user]);
 
     const { data: userProfileData, isLoading: isProfileLoading } = useDoc(userDocRef);
-
-    const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(null);
 
     const profileForm = useForm<ProfileFormValues>({
         resolver: zodResolver(profileSchema),
@@ -150,14 +149,12 @@ export default function SettingsPage() {
                 lastName: userProfileData.lastName || '',
                 email: userProfileData.email || '',
             });
-            setLocalAvatarUrl(userProfileData.photoURL);
         } else if (user && !isUserLoading) {
             profileForm.reset({
                 firstName: user.displayName?.split(' ')[0] || '',
                 lastName: user.displayName?.split(' ').slice(1).join(' ') || '',
                 email: user.email || '',
             });
-            setLocalAvatarUrl(user.photoURL);
         }
     }, [user, userProfileData, isUserLoading, profileForm]);
 
@@ -259,9 +256,11 @@ export default function SettingsPage() {
         try {
             const originalFile = data.photo[0];
             const compressedBlob = await compressImage(originalFile);
+            
+            // Instant UI Update with local data URL
+            const localUrl = URL.createObjectURL(compressedBlob);
+            setLocalUserPhoto(localUrl);
 
-            // Instant UI Update
-            setLocalAvatarUrl(URL.createObjectURL(compressedBlob));
             setIsPhotoDialogOpen(false);
             photoForm.reset();
             toast({
@@ -337,7 +336,7 @@ export default function SettingsPage() {
                         <div className="flex flex-col items-center gap-4">
                             <div className="relative group">
                                 <Avatar className="h-32 w-32">
-                                    <AvatarImage src={localAvatarUrl ?? user?.photoURL ?? undefined} alt={t('userAvatar')} />
+                                    <AvatarImage src={user?.photoURL ?? undefined} alt={t('userAvatar')} />
                                     <AvatarFallback className="text-4xl">{getAvatarFallback()}</AvatarFallback>
                                 </Avatar>
                                 <Button
