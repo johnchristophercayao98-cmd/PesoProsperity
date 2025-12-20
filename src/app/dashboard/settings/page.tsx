@@ -117,7 +117,10 @@ export default function SettingsPage() {
         return doc(firestore, 'users', user.uid);
     }, [firestore, user]);
 
-    const { data: userProfile, isLoading: isProfileLoading } = useDoc(userDocRef);
+    const { data: userProfileData, isLoading: isProfileLoading } = useDoc(userDocRef);
+
+    // Local state to manage optimistic UI updates for the avatar
+    const [optimisticPhotoURL, setOptimisticPhotoURL] = useState<string | undefined>(undefined);
 
     const profileForm = useForm<ProfileFormValues>({
         resolver: zodResolver(profileSchema),
@@ -142,26 +145,29 @@ export default function SettingsPage() {
     });
 
     useEffect(() => {
-        if (userProfile && !isProfileLoading) {
+        if (userProfileData) {
             profileForm.reset({
-                firstName: userProfile.firstName || '',
-                lastName: userProfile.lastName || '',
-                email: userProfile.email || '',
+                firstName: userProfileData.firstName || '',
+                lastName: userProfileData.lastName || '',
+                email: userProfileData.email || '',
             });
-        } else if (user && !isUserLoading && !userProfile) {
-            // Fallback for when firestore doc might be loading slower or is non-existent
-             profileForm.reset({
+            // Set the optimistic URL from Firestore data initially or when it changes
+            setOptimisticPhotoURL(userProfileData.photoURL);
+        } else if (user && !isUserLoading) {
+            profileForm.reset({
                 firstName: user.displayName?.split(' ')[0] || '',
                 lastName: user.displayName?.split(' ').slice(1).join(' ') || '',
                 email: user.email || '',
             });
+            setOptimisticPhotoURL(user.photoURL ?? undefined);
         }
-    }, [user, userProfile, isUserLoading, isProfileLoading, profileForm]);
+    }, [user, userProfileData, isUserLoading, profileForm]);
+
 
     const getAvatarFallback = () => {
         if (user?.isAnonymous) return "G";
-        if (userProfile?.firstName && userProfile?.lastName) {
-             return `${userProfile.firstName[0]}${userProfile.lastName[0]}`;
+        if (userProfileData?.firstName && userProfileData?.lastName) {
+             return `${userProfileData.firstName[0]}${userProfileData.lastName[0]}`;
         }
         if (user?.displayName) {
             const nameParts = user.displayName.split(' ');
@@ -254,8 +260,12 @@ export default function SettingsPage() {
         try {
             const originalFile = data.photo[0];
             const compressedBlob = await compressImage(originalFile);
+    
+            // Create a temporary local URL for instant UI update
+            const localUrl = URL.createObjectURL(compressedBlob);
+            setOptimisticPhotoURL(localUrl);
             
-            // UI is now free, close dialog and show toast
+            // Close dialog and reset form, UI feels instant
             setIsProcessingPhoto(false);
             setIsPhotoDialogOpen(false);
             photoForm.reset();
@@ -273,17 +283,24 @@ export default function SettingsPage() {
                     const uploadResult = await uploadBytes(storageRef, compressedBlob);
                     const downloadURL = await getDownloadURL(uploadResult.ref);
         
-                    // Update Auth user profile and Firestore document with final URL
+                    // Once uploaded, update Auth user profile and Firestore document with final URL
                     await updateProfile(auth.currentUser!, { photoURL: downloadURL });
                     await updateDocumentNonBlocking(userDocRef, { photoURL: downloadURL });
+                    
+                    // Update the optimistic URL to the final URL
+                    setOptimisticPhotoURL(downloadURL);
+                    // Clean up the local URL to prevent memory leaks
+                    URL.revokeObjectURL(localUrl);
+
                 } catch (error: any) {
                     console.error("Background photo upload failed:", error);
-                    // Optionally, show a failure toast here if you want to notify the user of background failures
                      toast({
                         variant: 'destructive',
                         title: 'Background Update Failed',
                         description: 'Could not save the new profile picture.',
                     });
+                    // Revert to original photo if background upload fails
+                    setOptimisticPhotoURL(userProfileData?.photoURL);
                 }
             };
     
@@ -291,13 +308,14 @@ export default function SettingsPage() {
             uploadAndFinalize();
     
         } catch (error: any) {
-             // This catch block now only handles compression errors
              toast({
                 variant: 'destructive',
                 title: 'Processing Failed',
                 description: error.message || 'Could not process the image.',
             });
             setIsProcessingPhoto(false);
+            // Revert on processing failure
+            setOptimisticPhotoURL(userProfileData?.photoURL);
         }
     }
 
@@ -347,7 +365,7 @@ export default function SettingsPage() {
                         <div className="flex flex-col items-center gap-4">
                             <div className="relative group">
                                 <Avatar className="h-32 w-32">
-                                    <AvatarImage src={userProfile?.photoURL ?? user?.photoURL ?? undefined} alt={t('userAvatar')} />
+                                    <AvatarImage src={optimisticPhotoURL ?? undefined} alt={t('userAvatar')} />
                                     <AvatarFallback className="text-4xl">{getAvatarFallback()}</AvatarFallback>
                                 </Avatar>
                                 <Button
