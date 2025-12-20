@@ -8,7 +8,7 @@ import { useAuth, useFirestore, useUser, updateDocumentNonBlocking, useStorage, 
 import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { updateProfile, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "firebase/auth";
-import { doc } from "firebase/firestore";
+import { doc, updateDoc } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { Loader2, Camera } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -119,9 +119,6 @@ export default function SettingsPage() {
 
     const { data: userProfileData, isLoading: isProfileLoading } = useDoc(userDocRef);
 
-    // Local state to manage optimistic UI updates for the avatar
-    const [optimisticPhotoURL, setOptimisticPhotoURL] = useState<string | undefined>(undefined);
-
     const profileForm = useForm<ProfileFormValues>({
         resolver: zodResolver(profileSchema),
         defaultValues: {
@@ -151,15 +148,12 @@ export default function SettingsPage() {
                 lastName: userProfileData.lastName || '',
                 email: userProfileData.email || '',
             });
-            // Set the optimistic URL from Firestore data initially or when it changes
-            setOptimisticPhotoURL(userProfileData.photoURL);
         } else if (user && !isUserLoading) {
             profileForm.reset({
                 firstName: user.displayName?.split(' ')[0] || '',
                 lastName: user.displayName?.split(' ').slice(1).join(' ') || '',
                 email: user.email || '',
             });
-            setOptimisticPhotoURL(user.photoURL ?? undefined);
         }
     }, [user, userProfileData, isUserLoading, profileForm]);
 
@@ -261,61 +255,31 @@ export default function SettingsPage() {
             const originalFile = data.photo[0];
             const compressedBlob = await compressImage(originalFile);
     
-            // Create a temporary local URL for instant UI update
-            const localUrl = URL.createObjectURL(compressedBlob);
-            setOptimisticPhotoURL(localUrl);
+            const filePath = `user-avatars/${user.uid}/${originalFile.name.split('.')[0]}.jpg`;
+            const storageRef = ref(storage, filePath);
             
-            // Close dialog and reset form, UI feels instant
-            setIsProcessingPhoto(false);
-            setIsPhotoDialogOpen(false);
-            photoForm.reset();
+            const uploadResult = await uploadBytes(storageRef, compressedBlob);
+            const downloadURL = await getDownloadURL(uploadResult.ref);
+
+            // Update Auth and Firestore with the permanent URL
+            await updateProfile(auth.currentUser, { photoURL: downloadURL });
+            await updateDoc(userDocRef, { photoURL: downloadURL });
+    
             toast({
                 title: t('profilePictureUpdated'),
                 description: t('avatarUpdatedSuccess'),
             });
     
-            // Perform upload and update in the background
-            const uploadAndFinalize = async () => {
-                try {
-                    const filePath = `user-avatars/${user.uid}/${originalFile.name.split('.')[0]}.jpg`;
-                    const storageRef = ref(storage, filePath);
-                    
-                    const uploadResult = await uploadBytes(storageRef, compressedBlob);
-                    const downloadURL = await getDownloadURL(uploadResult.ref);
-        
-                    // Once uploaded, update Auth user profile and Firestore document with final URL
-                    await updateProfile(auth.currentUser!, { photoURL: downloadURL });
-                    await updateDocumentNonBlocking(userDocRef, { photoURL: downloadURL });
-                    
-                    // Update the optimistic URL to the final URL
-                    setOptimisticPhotoURL(downloadURL);
-                    // Clean up the local URL to prevent memory leaks
-                    URL.revokeObjectURL(localUrl);
-
-                } catch (error: any) {
-                    console.error("Background photo upload failed:", error);
-                     toast({
-                        variant: 'destructive',
-                        title: 'Background Update Failed',
-                        description: 'Could not save the new profile picture.',
-                    });
-                    // Revert to original photo if background upload fails
-                    setOptimisticPhotoURL(userProfileData?.photoURL);
-                }
-            };
-    
-            // Execute without awaiting
-            uploadAndFinalize();
-    
         } catch (error: any) {
              toast({
                 variant: 'destructive',
-                title: 'Processing Failed',
-                description: error.message || 'Could not process the image.',
+                title: 'Update Failed',
+                description: error.message || 'Could not save the new profile picture.',
             });
+        } finally {
             setIsProcessingPhoto(false);
-            // Revert on processing failure
-            setOptimisticPhotoURL(userProfileData?.photoURL);
+            setIsPhotoDialogOpen(false);
+            photoForm.reset();
         }
     }
 
@@ -365,7 +329,7 @@ export default function SettingsPage() {
                         <div className="flex flex-col items-center gap-4">
                             <div className="relative group">
                                 <Avatar className="h-32 w-32">
-                                    <AvatarImage src={optimisticPhotoURL ?? undefined} alt={t('userAvatar')} />
+                                    <AvatarImage src={userProfileData?.photoURL ?? user?.photoURL ?? undefined} alt={t('userAvatar')} />
                                     <AvatarFallback className="text-4xl">{getAvatarFallback()}</AvatarFallback>
                                 </Avatar>
                                 <Button
