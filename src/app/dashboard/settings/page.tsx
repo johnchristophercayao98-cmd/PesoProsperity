@@ -4,7 +4,7 @@
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button, Input, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, Avatar, AvatarImage, AvatarFallback, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { useAuth, useFirestore, useUser, updateDocumentNonBlocking, useStorage, useDoc, useMemoFirebase } from "@/firebase";
+import { useAuth, useFirestore, useUser, useStorage, useDoc, useMemoFirebase } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { updateProfile, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "firebase/auth";
@@ -190,11 +190,12 @@ export default function SettingsPage() {
                 displayName: `${data.firstName} ${data.lastName}`,
             });
             
-            const userDocRef = doc(firestore, 'users', user.uid);
-            updateDocumentNonBlocking(userDocRef, {
-                firstName: data.firstName,
-                lastName: data.lastName,
-            });
+            if (userDocRef) {
+                await updateDoc(userDocRef, {
+                    firstName: data.firstName,
+                    lastName: data.lastName,
+                });
+            }
 
             await auth.currentUser.reload(); 
 
@@ -255,13 +256,12 @@ export default function SettingsPage() {
             const originalFile = data.photo[0];
             const compressedBlob = await compressImage(originalFile);
     
-            const filePath = `user-avatars/${user.uid}/${originalFile.name.split('.')[0]}.jpg`;
+            const filePath = `user-avatars/${user.uid}/${new Date().getTime()}.jpg`;
             const storageRef = ref(storage, filePath);
             
             const uploadResult = await uploadBytes(storageRef, compressedBlob);
             const downloadURL = await getDownloadURL(uploadResult.ref);
 
-            // Update Auth and Firestore with the permanent URL
             await updateProfile(auth.currentUser, { photoURL: downloadURL });
             await updateDoc(userDocRef, { photoURL: downloadURL });
     
@@ -518,5 +518,3 @@ export default function SettingsPage() {
     )
 
 }
-
-    
