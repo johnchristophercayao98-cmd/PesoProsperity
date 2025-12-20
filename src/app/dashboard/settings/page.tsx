@@ -119,6 +119,8 @@ export default function SettingsPage() {
 
     const { data: userProfileData, isLoading: isProfileLoading } = useDoc(userDocRef);
 
+    const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(null);
+
     const profileForm = useForm<ProfileFormValues>({
         resolver: zodResolver(profileSchema),
         defaultValues: {
@@ -148,12 +150,14 @@ export default function SettingsPage() {
                 lastName: userProfileData.lastName || '',
                 email: userProfileData.email || '',
             });
+            setLocalAvatarUrl(userProfileData.photoURL);
         } else if (user && !isUserLoading) {
             profileForm.reset({
                 firstName: user.displayName?.split(' ')[0] || '',
                 lastName: user.displayName?.split(' ').slice(1).join(' ') || '',
                 email: user.email || '',
             });
+            setLocalAvatarUrl(user.photoURL);
         }
     }, [user, userProfileData, isUserLoading, profileForm]);
 
@@ -255,20 +259,27 @@ export default function SettingsPage() {
         try {
             const originalFile = data.photo[0];
             const compressedBlob = await compressImage(originalFile);
-    
+
+            // Instant UI Update
+            setLocalAvatarUrl(URL.createObjectURL(compressedBlob));
+            setIsPhotoDialogOpen(false);
+            photoForm.reset();
+            toast({
+                title: t('profilePictureUpdated'),
+                description: t('avatarUpdatedSuccess'),
+            });
+            setIsProcessingPhoto(false);
+
+            // Background Upload
             const filePath = `user-avatars/${user.uid}/${new Date().getTime()}.jpg`;
             const storageRef = ref(storage, filePath);
             
             const uploadResult = await uploadBytes(storageRef, compressedBlob);
             const downloadURL = await getDownloadURL(uploadResult.ref);
 
+            // Permanent Update in background
             await updateProfile(auth.currentUser, { photoURL: downloadURL });
             await updateDoc(userDocRef, { photoURL: downloadURL });
-    
-            toast({
-                title: t('profilePictureUpdated'),
-                description: t('avatarUpdatedSuccess'),
-            });
     
         } catch (error: any) {
              toast({
@@ -276,10 +287,7 @@ export default function SettingsPage() {
                 title: 'Update Failed',
                 description: error.message || 'Could not save the new profile picture.',
             });
-        } finally {
-            setIsProcessingPhoto(false);
-            setIsPhotoDialogOpen(false);
-            photoForm.reset();
+             setIsProcessingPhoto(false);
         }
     }
 
@@ -329,7 +337,7 @@ export default function SettingsPage() {
                         <div className="flex flex-col items-center gap-4">
                             <div className="relative group">
                                 <Avatar className="h-32 w-32">
-                                    <AvatarImage src={userProfileData?.photoURL ?? user?.photoURL ?? undefined} alt={t('userAvatar')} />
+                                    <AvatarImage src={localAvatarUrl ?? user?.photoURL ?? undefined} alt={t('userAvatar')} />
                                     <AvatarFallback className="text-4xl">{getAvatarFallback()}</AvatarFallback>
                                 </Avatar>
                                 <Button
